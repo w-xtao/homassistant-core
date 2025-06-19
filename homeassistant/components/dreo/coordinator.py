@@ -15,7 +15,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.percentage import ranged_value_to_percentage
 
-from .const import DOMAIN, FAN_DEVICE_TYPE
+from .const import (
+    CIRCULATION_FAN_DEVICE_TYPE,
+    CIRCULATION_FAN_MODES,
+    DOMAIN,
+    FAN_DEVICE_TYPE,
+    OSCILLATION_MODES,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,7 +90,63 @@ class DreoFanDeviceData(DreoGenericDeviceData):
         return fan_data
 
 
-DreoDeviceData = DreoFanDeviceData
+class DreoCirculationFanDeviceData(DreoGenericDeviceData):
+    """Data specific to Dreo circulation fan devices."""
+
+    mode: str | None = None
+    speed_level: int | None = None  # 1-9档位
+    speed_percentage: int | None = None
+    oscillation_mode: str | None = None  # fixed, horizontal, vertical, both
+
+    def __init__(
+        self,
+        available: bool = False,
+        is_on: bool = False,
+        mode: str | None = None,
+        speed_level: int | None = None,
+        speed_percentage: int | None = None,
+        oscillation_mode: str | None = None,
+    ) -> None:
+        """Initialize circulation fan device data."""
+        super().__init__(available, is_on)
+        self.mode = mode
+        self.speed_level = speed_level
+        self.speed_percentage = speed_percentage
+        self.oscillation_mode = oscillation_mode
+
+    @staticmethod
+    def process_circulation_fan_data(
+        device_model: str, status: dict[str, Any]
+    ) -> DreoCirculationFanDeviceData:
+        """Process circulation fan device specific data."""
+
+        fan_data = DreoCirculationFanDeviceData(
+            available=status.get("connected", False),
+            is_on=status.get("power_switch", False),
+        )
+
+        # Process mode - convert from integer to string
+        if (mode_int := status.get("mode")) is not None:
+            # Find mode name by value
+            for mode_name, mode_value in CIRCULATION_FAN_MODES.items():
+                if mode_value == mode_int:
+                    fan_data.mode = mode_name
+                    break
+
+        # Process speed level (1-9)
+        if (speed := status.get("speed")) is not None:
+            fan_data.speed_level = int(speed)
+            # Convert to percentage (1-9 levels to 0-100%)
+            fan_data.speed_percentage = int((speed / 9) * 100)
+
+        # Process oscillation mode
+        if (osc_mode := status.get("oscmode")) is not None:
+            fan_data.oscillation_mode = OSCILLATION_MODES.get(osc_mode, "fixed")
+
+        return fan_data
+
+
+DreoDeviceData = DreoFanDeviceData | DreoCirculationFanDeviceData
 
 
 class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
@@ -113,6 +175,8 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
 
         if self.device_type == FAN_DEVICE_TYPE and self.device_model:
             self.data_processor = DreoFanDeviceData.process_fan_data
+        elif self.device_type == CIRCULATION_FAN_DEVICE_TYPE and self.device_model:
+            self.data_processor = DreoCirculationFanDeviceData.process_circulation_fan_data
         else:
             _LOGGER.warning(
                 "Unsupported device type: %s for model: %s - data will not be processed",
