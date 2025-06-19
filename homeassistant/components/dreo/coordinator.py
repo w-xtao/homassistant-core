@@ -15,13 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.percentage import ranged_value_to_percentage
 
-from .const import (
-    CIRCULATION_FAN_DEVICE_TYPE,
-    CIRCULATION_FAN_MODES,
-    DOMAIN,
-    FAN_DEVICE_TYPE,
-    OSCILLATION_MODES,
-)
+from .const import CIRCULATION_FAN_DEVICE_TYPE, DOMAIN, FAN_DEVICE_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +40,7 @@ class DreoFanDeviceData(DreoGenericDeviceData):
     mode: str | None = None
     oscillate: bool | None = None
     speed_percentage: int | None = None
+    config: dict[str, Any] | None = None
 
     def __init__(
         self,
@@ -63,7 +58,7 @@ class DreoFanDeviceData(DreoGenericDeviceData):
 
     @staticmethod
     def process_fan_data(
-        device_model: str, status: dict[str, Any]
+        device_model: str, status: dict[str, Any], config: dict[str, Any] | None = None
     ) -> DreoFanDeviceData:
         """Process fan device specific data."""
 
@@ -97,6 +92,7 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
     speed_level: int | None = None  # 1-9档位
     speed_percentage: int | None = None
     oscillation_mode: str | None = None  # fixed, horizontal, vertical, both
+    config: dict[str, Any] | None = None
 
     def __init__(
         self,
@@ -105,43 +101,52 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
         mode: str | None = None,
         speed_level: int | None = None,
         speed_percentage: int | None = None,
-        oscillation_mode: str | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize circulation fan device data."""
         super().__init__(available, is_on)
         self.mode = mode
         self.speed_level = speed_level
         self.speed_percentage = speed_percentage
-        self.oscillation_mode = oscillation_mode
+        self.config = config
 
     @staticmethod
     def process_circulation_fan_data(
-        device_model: str, status: dict[str, Any]
+        device_model: str, status: dict[str, Any], config: dict[str, Any] | None = None
     ) -> DreoCirculationFanDeviceData:
         """Process circulation fan device specific data."""
+
+        # Ensure we have a valid config or use default
+        device_config = config or {}
 
         fan_data = DreoCirculationFanDeviceData(
             available=status.get("connected", False),
             is_on=status.get("power_switch", False),
+            config=device_config,
         )
 
-        # Process mode - convert from integer to string
+        # Process mode using config preset_modes
         if (mode_int := status.get("mode")) is not None:
-            # Find mode name by value
-            for mode_name, mode_value in CIRCULATION_FAN_MODES.items():
-                if mode_value == mode_int:
-                    fan_data.mode = mode_name
-                    break
+            preset_modes = device_config.get("preset_modes", [])
+            if preset_modes and 1 <= mode_int <= len(preset_modes):
+                fan_data.mode = preset_modes[mode_int - 1]  # modes are 1-indexed
+            else:
+                fan_data.mode = str(mode_int)  # fallback to string representation
 
-        # Process speed level (1-9)
+        # Process speed using config speed_range
         if (speed := status.get("speed")) is not None:
             fan_data.speed_level = int(speed)
-            # Convert to percentage (1-9 levels to 0-100%)
-            fan_data.speed_percentage = int((speed / 9) * 100)
+            speed_range = device_config.get("speed_range", [1, 9])
+            max_speed = speed_range[1] if len(speed_range) >= 2 else 9
+            fan_data.speed_percentage = int((speed / max_speed) * 100)
 
-        # Process oscillation mode
+        # Process oscillation mode using config direction
         if (osc_mode := status.get("oscmode")) is not None:
-            fan_data.oscillation_mode = OSCILLATION_MODES.get(osc_mode, "fixed")
+            direction_modes = device_config.get("directions")
+            if direction_modes and 0 <= osc_mode < len(direction_modes):
+                fan_data.oscillation_mode = direction_modes[osc_mode]
+            else:
+                fan_data.oscillation_mode = "fixed"
 
         return fan_data
 
@@ -159,6 +164,7 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
         device_id: str,
         model: str,
         device_type: str,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -171,7 +177,8 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
         self.device_id = device_id
         self.device_model = model
         self.device_type = device_type
-        self.data_processor: Callable[[str, dict[str, Any]], DreoDeviceData] | None
+        self.data_processor: Callable[[str, dict[str, Any], dict[str, Any] | None], DreoDeviceData] | None
+        self.config = config
 
         if self.device_type == FAN_DEVICE_TYPE and self.device_model:
             self.data_processor = DreoFanDeviceData.process_fan_data
@@ -211,7 +218,7 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
             if self.data_processor is None:
                 _raise_no_processor()
 
-            return self.data_processor(self.device_model, status)
+            return self.data_processor(self.device_model, status, self.config)
         except HsCloudException as error:
             raise UpdateFailed(f"Error communicating with Dreo API: {error}") from error
         except Exception as error:

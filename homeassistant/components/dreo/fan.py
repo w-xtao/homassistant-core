@@ -11,26 +11,18 @@ import voluptuous as vol
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import (
-    AddConfigEntryEntitiesCallback,
-    async_get_current_platform,
-)
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.percentage import percentage_to_ranged_value
 
 from . import DreoConfigEntry
 from .const import (
     CIRCULATION_FAN_DEVICE_TYPE,
-    CIRCULATION_FAN_MODES,
     ERROR_SET_OSCILLATE_FAILED,
-    ERROR_SET_OSCILLATION_MODE_FAILED,
     ERROR_SET_PRESET_MODE_FAILED,
     ERROR_SET_SPEED_FAILED,
     ERROR_TURN_OFF_FAILED,
     ERROR_TURN_ON_FAILED,
     FAN_DEVICE_TYPE,
-    OSCILLATION_MODE_TO_INT,
-    OSCILLATION_MODES,
-    SERVICE_SET_OSCILLATION_MODE,
 )
 from .coordinator import DreoDataUpdateCoordinator
 from .entity import DreoEntity
@@ -74,16 +66,6 @@ async def async_setup_entry(
 
         if new_fans:
             async_add_entities(new_fans)
-
-    # Register custom services for circulation fans
-    platform = async_get_current_platform()
-    platform.async_register_entity_service(
-        SERVICE_SET_OSCILLATION_MODE,
-        {
-            vol.Required("oscillation_mode"): vol.In(list(OSCILLATION_MODES.values()))
-        },
-        "async_set_oscillation_mode",
-    )
 
     async_add_fan_devices()
 
@@ -221,15 +203,14 @@ class DreoCirculationFan(DreoEntity, FanEntity):
     _attr_supported_features = (
         FanEntityFeature.PRESET_MODE
         | FanEntityFeature.SET_SPEED
-        | FanEntityFeature.OSCILLATE
+        | FanEntityFeature.DIRECTION
         | FanEntityFeature.TURN_ON
         | FanEntityFeature.TURN_OFF
     )
     _attr_is_on = False
     _attr_percentage = 0
     _attr_preset_mode = None
-    _attr_oscillating = None
-    _attr_oscillation_mode: str | None = None
+    _oscillation_directions: list[str] = []
 
     def __init__(
         self,
@@ -239,9 +220,11 @@ class DreoCirculationFan(DreoEntity, FanEntity):
         """Initialize the Dreo circulation fan."""
         super().__init__(device, coordinator, CIRCULATION_FAN_DEVICE_TYPE, None)
 
-        self._attr_preset_modes = list(CIRCULATION_FAN_MODES.keys())
-        self._speed_levels = 9
-        self._oscillation_modes = list(OSCILLATION_MODES.values())
+        config = coordinator.config or {}
+        self._attr_preset_modes = config.get("preset_modes")
+        self._speed_levels = config.get("speed_range")
+        self._oscillation_directions = config.get("directions")
+
 
     @callback
     def _handle_coordinator_update(self):
@@ -264,8 +247,6 @@ class DreoCirculationFan(DreoEntity, FanEntity):
         if not fan_state_data.is_on:
             self._attr_percentage = 0
             self._attr_preset_mode = None
-            self._attr_oscillating = None
-            self._attr_oscillation_mode = None
         else:
             self._attr_preset_mode = fan_state_data.mode
             self._attr_percentage = fan_state_data.speed_percentage
@@ -274,9 +255,6 @@ class DreoCirculationFan(DreoEntity, FanEntity):
                 self._attr_oscillation_mode = fan_state_data.oscillation_mode
                 # For Home Assistant compatibility, oscillating is true if not in fixed mode
                 self._attr_oscillating = fan_state_data.oscillation_mode != "fixed"
-            else:
-                self._attr_oscillation_mode = None
-                self._attr_oscillating = None
 
     async def async_turn_on(
         self,
@@ -311,41 +289,22 @@ class DreoCirculationFan(DreoEntity, FanEntity):
             ERROR_SET_SPEED_FAILED, percentage=percentage
         )
 
-    async def async_oscillate(self, oscillating: bool) -> None:
-        """Set the oscillation of circulation fan."""
-        osc_mode = 1 if oscillating else 0
+
+    async def async_set_oscillation_mode(self, oscillation_mode: str) -> None:
+        """Set the specific oscillation mode of circulation fan."""
+        config = self.coordinator.config or {}
+        direction_modes = config.get("direction", ["fixed", "horizontal", "vertical", "both"])
+
+        if oscillation_mode not in direction_modes:
+            _LOGGER.error("Invalid oscillation mode: %s", oscillation_mode)
+            return
+
+        # Find the index of the oscillation mode
+        osc_mode = direction_modes.index(oscillation_mode)
         await self.async_execute_circulation_fan_command(
             ERROR_SET_OSCILLATE_FAILED, oscmode=osc_mode
         )
 
-    async def async_set_oscillation_mode(self, oscillation_mode: str) -> None:
-        """Set the specific oscillation mode of circulation fan."""
-        if oscillation_mode not in OSCILLATION_MODE_TO_INT:
-            _LOGGER.error("Invalid oscillation mode: %s", oscillation_mode)
-            return
-        
-        osc_mode = OSCILLATION_MODE_TO_INT[oscillation_mode]
-        await self.async_execute_circulation_fan_command(
-            ERROR_SET_OSCILLATION_MODE_FAILED, oscmode=osc_mode
-        )
-
-    @property
-    def oscillation_mode(self) -> str | None:
-        """Return the current oscillation mode."""
-        return self._attr_oscillation_mode
-
-    @property
-    def oscillation_modes(self) -> list[str]:
-        """Return a list of available oscillation modes."""
-        return self._oscillation_modes
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return additional state attributes."""
-        attrs = super().extra_state_attributes or {}
-        attrs["oscillation_mode"] = self.oscillation_mode
-        attrs["oscillation_modes"] = self.oscillation_modes
-        return attrs
 
     async def async_execute_circulation_fan_command(
         self,
@@ -365,8 +324,11 @@ class DreoCirculationFan(DreoEntity, FanEntity):
             speed_level = max(1, min(9, math.ceil((percentage / 100) * 9)))
             command_params["speed"] = speed_level
 
-        if preset_mode is not None and preset_mode in CIRCULATION_FAN_MODES:
-            command_params["mode"] = CIRCULATION_FAN_MODES[preset_mode]
+        if preset_mode is not None:
+            config = self.coordinator.config or {}
+            preset_modes = config.get("preset_modes", [])
+            if preset_mode in preset_modes:
+                command_params["mode"] = preset_modes.index(preset_mode) + 1
 
         if oscmode is not None:
             command_params["oscmode"] = oscmode

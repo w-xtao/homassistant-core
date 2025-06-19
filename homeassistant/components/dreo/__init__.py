@@ -77,6 +77,7 @@ async def async_setup_device_coordinator(
     device_model = device.get("model")
     device_id = device.get("deviceSn")
     device_type = device.get("deviceType")
+    config = device.get("config")
 
     if not device_id or not device_model or not device_type:
         return
@@ -85,7 +86,7 @@ async def async_setup_device_coordinator(
         return
 
     coordinator = DreoDataUpdateCoordinator(
-        hass, client, device_id, device_model, device_type
+        hass, client, device_id, device_model, device_type,config
     )
 
     if coordinator.data_processor is None:
