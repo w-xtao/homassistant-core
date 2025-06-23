@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from hscloud.hscloud import HsCloud
@@ -15,9 +16,11 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
 from .coordinator import DreoDataUpdateCoordinator
 
+_LOGGER = logging.getLogger(__name__)
+
 type DreoConfigEntry = ConfigEntry[DreoData]
 
-PLATFORMS = [Platform.FAN]
+PLATFORMS = [Platform.FAN, Platform.LIGHT]
 
 
 @dataclass
@@ -77,23 +80,28 @@ async def async_setup_device_coordinator(
     device_model = device.get("model")
     device_id = device.get("deviceSn")
     device_type = device.get("deviceType")
-    config = device.get("config")
+    model_config = device.get("config")
 
     if not device_id or not device_model or not device_type:
+        return
+
+    if model_config is None:
+        _LOGGER.warning(
+            "Model config is not available for model %s", device_model
+        )
         return
 
     if device_id in coordinators:
         return
 
     coordinator = DreoDataUpdateCoordinator(
-        hass, client, device_id, device_model, device_type,config
+        hass, client, device_id, device_type, model_config
     )
 
     if coordinator.data_processor is None:
         return
 
     await coordinator.async_config_entry_first_refresh()
-
     coordinators[device_id] = coordinator
 
 
