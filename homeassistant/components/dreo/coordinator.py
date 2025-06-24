@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.percentage import ranged_value_to_percentage
 
-from .const import CIRCULATION_FAN_DEVICE_TYPE, DOMAIN, FAN_DEVICE_TYPE
+from .const import CIR_FAN_DEVICE_TYPE, DOMAIN, FAN_DEVICE_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
 
         if self.device_type == FAN_DEVICE_TYPE:
             self.data_processor = DreoFanDeviceData.process_fan_data
-        elif self.device_type == CIRCULATION_FAN_DEVICE_TYPE:
+        elif self.device_type == CIR_FAN_DEVICE_TYPE:
             self.data_processor = (
                 DreoCirculationFanDeviceData.process_circulation_fan_data
             )

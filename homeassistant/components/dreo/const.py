@@ -2,9 +2,9 @@
 
 DOMAIN = "dreo"
 FAN_DEVICE_TYPE = "fan"
-CIRCULATION_FAN_DEVICE_TYPE = "circulation_fan"
+CIR_FAN_DEVICE_TYPE = "circulation_fan"
 
-AIR_FAN_OSCILLATE_ENTITY = "oscillation_direction"
+CIR_FAN_OSCILLATE_ENTITY = "oscillation_direction"
 
 # Error messages
 ERROR_TURN_ON_FAILED = "turn_on_failed"

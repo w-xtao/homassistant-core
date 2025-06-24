@@ -12,6 +12,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import DreoConfigEntry
 from .const import (
     AIR_FAN_OSCILLATE_ENTITY,
+    CIR_FAN_DEVICE_TYPE,
+    CIR_FAN_OSCILLATE_ENTITY,
     CIRCULATION_FAN_DEVICE_TYPE,
     ERROR_SET_OSCILLATE_FAILED,
 )
@@ -69,7 +71,7 @@ class DreoOscillationSelect(DreoEntity, SelectEntity):
     ) -> None:
         """Initialize the oscillation select."""
         super().__init__(
-            device, coordinator, CIRCULATION_FAN_DEVICE_TYPE, AIR_FAN_OSCILLATE_ENTITY
+            device, coordinator, CIR_FAN_DEVICE_TYPE, CIR_FAN_OSCILLATE_ENTITY
         )
 
         select_options = coordinator.model_config.get("selectOptions", [])

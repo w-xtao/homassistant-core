@@ -13,7 +13,7 @@ from homeassistant.util.percentage import percentage_to_ranged_value
 
 from . import DreoConfigEntry
 from .const import (
-    CIRCULATION_FAN_DEVICE_TYPE,
+    CIR_FAN_DEVICE_TYPE,
     ERROR_SET_OSCILLATE_FAILED,
     ERROR_SET_PRESET_MODE_FAILED,
     ERROR_SET_SPEED_FAILED,
@@ -45,7 +45,7 @@ async def async_setup_entry(
                 continue
 
             # Only process fan-type devices
-            if device_type not in [FAN_DEVICE_TYPE, CIRCULATION_FAN_DEVICE_TYPE]:
+            if device_type not in [FAN_DEVICE_TYPE, CIR_FAN_DEVICE_TYPE]:
                 continue
 
             device_id = device.get("deviceSn")
@@ -60,7 +60,7 @@ async def async_setup_entry(
             if device_type == FAN_DEVICE_TYPE:
                 fan = DreoFan(device, coordinator)
                 new_fans.append(fan)
-            elif device_type == CIRCULATION_FAN_DEVICE_TYPE:
+            elif device_type == CIR_FAN_DEVICE_TYPE:
                 circulation_fan = DreoCirculationFan(device, coordinator)
                 new_fans.append(circulation_fan)
 
@@ -217,7 +217,7 @@ class DreoCirculationFan(DreoEntity, FanEntity):
         coordinator: DreoDataUpdateCoordinator,
     ) -> None:
         """Initialize the Dreo circulation fan."""
-        super().__init__(device, coordinator, CIRCULATION_FAN_DEVICE_TYPE, None)
+        super().__init__(device, coordinator, CIR_FAN_DEVICE_TYPE, None)
 
         config = coordinator.model_config
 
