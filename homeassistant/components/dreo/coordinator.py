@@ -7,8 +7,8 @@ from datetime import timedelta
 import logging
 from typing import Any, NoReturn
 
-from hscloud.hscloud import HsCloud
-from hscloud.hscloudexception import HsCloudException
+from pydreo.client import DreoClient
+from pydreo.exceptions import DreoException
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -117,7 +117,6 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
     ) -> DreoCirculationFanDeviceData:
         """Process circulation fan device specific data."""
 
-
         fan_data = DreoCirculationFanDeviceData(
             available=status.get("connected", False),
             is_on=status.get("power_switch", False),
@@ -136,15 +135,17 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
                 )
 
         if (osc_mode := status.get("oscmode")) is not None:
-            direction_modes = model_config.get("shakingDirections")
-            if direction_modes and 0 <= osc_mode < len(direction_modes):
-                fan_data.oscillation_mode = direction_modes[osc_mode]
+            direction_modes = model_config.get("selectOptions")
+            if direction_modes and osc_mode in direction_modes:
+                fan_data.oscillation_mode = osc_mode
             else:
                 fan_data.oscillation_mode = "fixed"
 
         return fan_data
 
+
 DreoDeviceData = DreoFanDeviceData | DreoCirculationFanDeviceData
+
 
 class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
     """Class to manage fetching Dreo data."""
@@ -152,7 +153,7 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
     def __init__(
         self,
         hass: HomeAssistant,
-        client: HsCloud,
+        client: DreoClient,
         device_id: str,
         device_type: str,
         model_config: dict[str, Any],
@@ -175,7 +176,9 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
         if self.device_type == FAN_DEVICE_TYPE:
             self.data_processor = DreoFanDeviceData.process_fan_data
         elif self.device_type == CIRCULATION_FAN_DEVICE_TYPE:
-            self.data_processor = DreoCirculationFanDeviceData.process_circulation_fan_data
+            self.data_processor = (
+                DreoCirculationFanDeviceData.process_circulation_fan_data
+            )
         else:
             _LOGGER.warning(
                 "Unsupported device type: %s for model: %s - data will not be processed",
@@ -211,7 +214,7 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
                 _raise_no_processor()
 
             return self.data_processor(status, self.model_config)
-        except HsCloudException as error:
+        except DreoException as error:
             raise UpdateFailed(f"Error communicating with Dreo API: {error}") from error
         except Exception as error:
             raise UpdateFailed(f"Unexpected error: {error}") from error

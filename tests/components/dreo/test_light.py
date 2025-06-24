@@ -2,15 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
-from homeassistant.components.light import (
-    ATTR_BRIGHTNESS,
-    DOMAIN as LIGHT_DOMAIN,
-)
+from homeassistant.components.light import ATTR_BRIGHTNESS, DOMAIN as LIGHT_DOMAIN
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
-    STATE_OFF,
     STATE_ON,
 )
 from homeassistant.core import HomeAssistant
@@ -87,7 +83,7 @@ async def test_rgb_light_turn_off(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
 
     light_entity = "light.bedroom_circulation_fan_rgb_light"
-    
+
     # Turn off RGB light
     await hass.services.async_call(
         LIGHT_DOMAIN,
@@ -97,7 +93,9 @@ async def test_rgb_light_turn_off(hass: HomeAssistant) -> None:
     )
 
     # Should call update_status with rgb_switch=False
-    mock_client.update_status.assert_called_with("test-circulation-fan-456", rgb_switch=False)
+    mock_client.update_status.assert_called_with(
+        "test-circulation-fan-456", rgb_switch=False
+    )
 
 
 async def test_rgb_light_turn_on_with_brightness(hass: HomeAssistant) -> None:
@@ -130,7 +128,7 @@ async def test_rgb_light_turn_on_with_brightness(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
 
     light_entity = "light.office_circulation_fan_rgb_light"
-    
+
     # Turn on RGB light with 75% brightness (191 in HA scale)
     await hass.services.async_call(
         LIGHT_DOMAIN,
@@ -141,7 +139,5 @@ async def test_rgb_light_turn_on_with_brightness(hass: HomeAssistant) -> None:
 
     # Should call update_status with rgb_switch=True and rgb_brightness=75
     mock_client.update_status.assert_called_with(
-        "test-circulation-fan-789", 
-        rgb_switch=True, 
-        rgb_brightness=75
-    ) 
+        "test-circulation-fan-789", rgb_switch=True, rgb_brightness=75
+    )
