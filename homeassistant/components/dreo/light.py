@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import DreoConfigEntry
 from .const import (
-    CIRCULATION_FAN_DEVICE_TYPE,
+    CIR_FAN_DEVICE_TYPE,
     ERROR_SET_BRIGHTNESS_FAILED,
     ERROR_TURN_OFF_FAILED,
     ERROR_TURN_ON_FAILED,
@@ -41,7 +41,7 @@ async def async_setup_entry(
 
         for device in config_entry.runtime_data.devices:
             device_type = device.get("deviceType")
-            if device_type != CIRCULATION_FAN_DEVICE_TYPE:
+            if device_type != CIR_FAN_DEVICE_TYPE:
                 continue
 
             device_id = str(device.get("deviceSn", ""))

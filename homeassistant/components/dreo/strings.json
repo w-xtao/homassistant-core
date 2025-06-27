@@ -34,6 +34,12 @@
     },
     "set_oscillate_failed": {
       "message": "Failed to set oscillation"
+    },
+    "set_humidity_failed": {
+      "message": "Humidity can only be set in Dry mode"
+    },
+    "set_temperature_failed": {
+      "message": "Temperature can only be set in Cool mode"
     }
   }
 }

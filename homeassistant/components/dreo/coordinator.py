@@ -10,11 +10,18 @@ from typing import Any, NoReturn
 from pydreo.client import DreoClient
 from pydreo.exceptions import DreoException
 
+from homeassistant.components.climate import HVACMode
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.percentage import ranged_value_to_percentage
 
-from .const import CIR_FAN_DEVICE_TYPE, DOMAIN, FAN_DEVICE_TYPE
+from .const import (
+    CIR_FAN_DEVICE_TYPE,
+    DOMAIN,
+    FAN_DEVICE_TYPE,
+    HAC_DEVICE_TYPE,
+    HEC_DEVICE_TYPE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,7 +151,153 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
         return fan_data
 
 
-DreoDeviceData = DreoFanDeviceData | DreoCirculationFanDeviceData
+class DreoHacDeviceData(DreoGenericDeviceData):
+    """Data specific to Dreo HAC (Air Conditioner) devices."""
+
+    mode: str | None = None
+    hvac_mode: str | None = None
+    speed_level: int | None = None
+    speed_percentage: int | None = None
+    current_temperature: float | None = None
+    target_temperature: float | None = None
+    target_humidity: float | None = None
+    model_config: dict[str, Any] | None = None
+
+    def __init__(
+        self,
+        available: bool = False,
+        is_on: bool = False,
+        mode: str | None = None,
+        hvac_mode: str | None = None,
+        speed_level: int | None = None,
+        speed_percentage: int | None = None,
+        target_temperature: float | None = None,
+        target_humidity: float | None = None,
+        model_config: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize HAC device data."""
+        super().__init__(available, is_on)
+        self.mode = mode
+        self.hvac_mode = hvac_mode
+        self.speed_level = speed_level
+        self.speed_percentage = speed_percentage
+        self.target_temperature = target_temperature
+        self.target_humidity = target_humidity
+        self.model_config = model_config
+
+    @staticmethod
+    def process_hac_data(
+        status: dict[str, Any], model_config: dict[str, Any]
+    ) -> DreoHacDeviceData:
+        """Process HAC device specific data."""
+
+        hac_data = DreoHacDeviceData(
+            available=status.get("connected", False),
+            is_on=status.get("power_switch", False),
+            model_config=model_config,
+        )
+
+        if (hvac_mode := status.get("hvacmode")) is not None:
+            hac_data.hvac_mode = str(hvac_mode)
+
+        if (mode := status.get("mode")) is not None:
+            hac_data.mode = str(mode)
+            if mode in ["sleep", "eco"]:
+                hac_data.hvac_mode = HVACMode.COOL
+
+        if (speed := status.get("speed")) is not None:
+            hac_data.speed_level = int(speed)
+            speed_range = model_config.get("speed_range")
+            if speed_range and len(speed_range) >= 2:
+                hac_data.speed_percentage = int(
+                    ranged_value_to_percentage(tuple(speed_range), float(speed))
+                )
+
+        if (temp := status.get("temperature")) is not None:
+            hac_data.target_temperature = float(temp)
+
+        if (humidity := status.get("humidity")) is not None:
+            hac_data.target_humidity = float(humidity)
+
+        return hac_data
+
+
+class DreoHecDeviceData(DreoGenericDeviceData):
+    """Data specific to Dreo HEC (Hybrid Evaporative Cooler) devices."""
+
+    mode: str | None = None
+    speed_level: int | None = None
+    speed_percentage: int | None = None
+    oscillate: bool | None = None
+    target_humidity: float | None = None
+    current_humidity: float | None = None
+    model_config: dict[str, Any] | None = None
+
+    def __init__(
+        self,
+        available: bool = False,
+        is_on: bool = False,
+        mode: str | None = None,
+        speed_level: int | None = None,
+        speed_percentage: int | None = None,
+        oscillate: bool | None = None,
+        target_humidity: float | None = None,
+        current_humidity: float | None = None,
+        model_config: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize HEC device data."""
+        super().__init__(available, is_on)
+        self.mode = mode
+        self.speed_level = speed_level
+        self.speed_percentage = speed_percentage
+        self.oscillate = oscillate
+        self.target_humidity = target_humidity
+        self.current_humidity = current_humidity
+        self.model_config = model_config
+
+    @staticmethod
+    def process_hec_data(
+        status: dict[str, Any], model_config: dict[str, Any]
+    ) -> DreoHecDeviceData:
+        """Process HEC device specific data."""
+
+        hec_data = DreoHecDeviceData(
+            available=status.get("connected", False),
+            is_on=status.get("power_switch", False),
+            model_config=model_config,
+        )
+
+        # Handle device mode
+        if (mode := status.get("mode")) is not None:
+            hec_data.mode = str(mode)
+
+        if (speed := status.get("speed")) is not None:
+            hec_data.speed_level = int(speed)
+            speed_range = model_config.get("speed_range")
+            if speed_range and len(speed_range) >= 2:
+                hec_data.speed_percentage = int(
+                    ranged_value_to_percentage(tuple(speed_range), float(speed))
+                )
+
+        if (oscillate := status.get("oscillate")) is not None:
+            hec_data.oscillate = bool(oscillate)
+
+        if (humidity := status.get("humidity")) is not None:
+            hec_data.target_humidity = float(humidity)
+
+        # For current humidity, we might get it from a different field
+        if (current_humidity := status.get("current_humidity")) is not None:
+            hec_data.current_humidity = float(current_humidity)
+
+        return hec_data
+
+
+DreoDeviceData = (
+    DreoFanDeviceData
+    | DreoCirculationFanDeviceData
+    | DreoHacDeviceData
+    | DreoHecDeviceData
+)
 
 
 class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
@@ -179,6 +332,10 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
             self.data_processor = (
                 DreoCirculationFanDeviceData.process_circulation_fan_data
             )
+        elif self.device_type == HAC_DEVICE_TYPE:
+            self.data_processor = DreoHacDeviceData.process_hac_data
+        elif self.device_type == HEC_DEVICE_TYPE:
+            self.data_processor = DreoHecDeviceData.process_hec_data
         else:
             _LOGGER.warning(
                 "Unsupported device type: %s for model: %s - data will not be processed",

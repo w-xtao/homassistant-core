@@ -14,14 +14,16 @@ from homeassistant.util.percentage import percentage_to_ranged_value
 from . import DreoConfigEntry
 from .const import (
     CIR_FAN_DEVICE_TYPE,
+    ERROR_SET_HEC_HUMIDITY_FAILED,
     ERROR_SET_OSCILLATE_FAILED,
     ERROR_SET_PRESET_MODE_FAILED,
     ERROR_SET_SPEED_FAILED,
     ERROR_TURN_OFF_FAILED,
     ERROR_TURN_ON_FAILED,
     FAN_DEVICE_TYPE,
+    HEC_DEVICE_TYPE,
 )
-from .coordinator import DreoDataUpdateCoordinator
+from .coordinator import DreoDataUpdateCoordinator, DreoFanDeviceData, DreoHecDeviceData
 from .entity import DreoEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,15 +39,19 @@ async def async_setup_entry(
     @callback
     def async_add_fan_devices() -> None:
         """Add fan devices."""
-        new_fans: list[DreoFan | DreoCirculationFan] = []
+        new_fans: list[DreoFan | DreoCirculationFan | DreoHecFan] = []
 
         for device in config_entry.runtime_data.devices:
             device_type = device.get("deviceType")
             if device_type is None:
                 continue
 
-            # Only process fan-type devices
-            if device_type not in [FAN_DEVICE_TYPE, CIR_FAN_DEVICE_TYPE]:
+            # Only process fan-type devices (including HEC)
+            if device_type not in [
+                FAN_DEVICE_TYPE,
+                CIR_FAN_DEVICE_TYPE,
+                HEC_DEVICE_TYPE,
+            ]:
                 continue
 
             device_id = device.get("deviceSn")
@@ -63,6 +69,9 @@ async def async_setup_entry(
             elif device_type == CIR_FAN_DEVICE_TYPE:
                 circulation_fan = DreoCirculationFan(device, coordinator)
                 new_fans.append(circulation_fan)
+            elif device_type == HEC_DEVICE_TYPE:
+                hec_fan = DreoHecFan(device, coordinator)
+                new_fans.append(hec_fan)
 
         if new_fans:
             async_add_entities(new_fans)
@@ -307,6 +316,240 @@ class DreoCirculationFan(DreoEntity, FanEntity):
 
         if preset_mode is not None:
             command_params["mode"] = preset_mode
+
+        await self.async_send_command_and_update(
+            error_translation_key, **command_params
+        )
+
+
+class DreoHecFan(DreoEntity, FanEntity):
+    """Dreo HEC (Hybrid Evaporative Cooler) fan with humidity control and oscillation."""
+
+    _attr_supported_features = (
+        FanEntityFeature.PRESET_MODE
+        | FanEntityFeature.SET_SPEED
+        | FanEntityFeature.OSCILLATE
+        | FanEntityFeature.TURN_ON
+        | FanEntityFeature.TURN_OFF
+    )
+    _attr_is_on = False
+    _attr_percentage = 0
+    _attr_preset_mode = None
+    _attr_oscillating = None
+    _low_high_range: tuple[int, int]
+
+    def __init__(
+        self,
+        device: dict[str, Any],
+        coordinator: DreoDataUpdateCoordinator,
+    ) -> None:
+        """Initialize the Dreo HEC fan."""
+        super().__init__(device, coordinator, HEC_DEVICE_TYPE, None)
+
+        model_config = coordinator.model_config
+        speed_range = model_config.get("speed_range")
+
+        if speed_range:
+            self._low_high_range = tuple(speed_range)
+        else:
+            self._low_high_range = (1, 4)  # Default for HEC
+        self._attr_preset_modes = model_config.get("preset_modes")
+
+        # HEC specific attributes for humidity
+        humidity_range = model_config.get("humidity_range")
+        if humidity_range:
+            self._min_humidity = float(humidity_range[0])
+            self._max_humidity = float(humidity_range[1])
+        else:
+            self._min_humidity = 40.0
+            self._max_humidity = 90.0
+
+    @callback
+    def _handle_coordinator_update(self):
+        """Handle updated data from the coordinator."""
+        self._update_attributes()
+        super()._handle_coordinator_update()
+
+    def _update_attributes(self):
+        """Update attributes from coordinator data."""
+        if not self.coordinator.data:
+            return
+
+        hec_data = self.coordinator.data
+        self._attr_available = hec_data.available
+
+        if not hec_data.is_on:
+            self._attr_percentage = 0
+            self._attr_preset_mode = None
+            self._attr_oscillating = None
+        else:
+            # Map device mode to preset mode
+            device_mode = hec_data.mode
+            if device_mode in ["Normal", "Auto", "Sleep", "Natural"]:
+                self._attr_preset_mode = device_mode.lower()
+            else:
+                self._attr_preset_mode = "normal"
+
+            # Set oscillation state
+            self._attr_oscillating = getattr(hec_data, "oscillate", None)
+
+            # Calculate percentage from speed level
+            if hec_data.speed_level and self._low_high_range:
+                # Convert speed level to percentage
+                speed_range = self._low_high_range[1] - self._low_high_range[0] + 1
+                percentage = (hec_data.speed_level / speed_range) * 100
+                self._attr_percentage = min(100, max(0, int(percentage)))
+            else:
+                self._attr_percentage = 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the optional state attributes."""
+        if not isinstance(self.coordinator.data, DreoHecDeviceData):
+            return None
+
+        hec_data = self.coordinator.data
+        attrs = {}
+
+        if (
+            hasattr(hec_data, "target_humidity")
+            and hec_data.target_humidity is not None
+        ):
+            attrs["target_humidity"] = hec_data.target_humidity
+
+        if (
+            hasattr(hec_data, "current_humidity")
+            and hec_data.current_humidity is not None
+        ):
+            attrs["current_humidity"] = hec_data.current_humidity
+
+        return attrs if attrs else None
+
+    @property
+    def oscillating(self) -> bool | None:
+        """Return whether or not the fan is currently oscillating."""
+        if not isinstance(
+            self.coordinator.data, (DreoFanDeviceData, DreoHecDeviceData)
+        ):
+            return None
+
+        device_data = self.coordinator.data
+        if hasattr(device_data, "oscillate"):
+            return device_data.oscillate
+        return None
+
+    @property
+    def percentage(self) -> int | None:
+        """Return the current speed percentage."""
+        if not isinstance(
+            self.coordinator.data, (DreoFanDeviceData, DreoHecDeviceData)
+        ):
+            return None
+
+        device_data = self.coordinator.data
+        if hasattr(device_data, "speed_level") and device_data.speed_level is not None:
+            return self.speed_level_to_percentage(device_data.speed_level)
+        return None
+
+    def speed_level_to_percentage(self, speed_level: int) -> int:
+        """Convert speed level to percentage."""
+        if not self._low_high_range:
+            return 0
+
+        min_speed, max_speed = self._low_high_range
+        if speed_level <= min_speed:
+            return 1
+        if speed_level >= max_speed:
+            return 100
+
+        # Convert speed level to percentage (1-4 -> 25%, 50%, 75%, 100%)
+        return int((speed_level / max_speed) * 100)
+
+    async def async_turn_on(
+        self,
+        percentage: int | None = None,
+        preset_mode: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Turn the device on."""
+        await self.async_execute_hec_command(
+            ERROR_TURN_ON_FAILED, percentage=percentage, preset_mode=preset_mode
+        )
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the device off."""
+        await self.async_send_command_and_update(
+            ERROR_TURN_OFF_FAILED, power_switch=False
+        )
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set the preset mode of HEC fan."""
+        await self.async_execute_hec_command(
+            ERROR_SET_PRESET_MODE_FAILED, preset_mode=preset_mode
+        )
+
+    async def async_set_percentage(self, percentage: int) -> None:
+        """Set the speed of HEC fan."""
+        if percentage <= 0:
+            await self.async_turn_off()
+            return
+
+        await self.async_execute_hec_command(
+            ERROR_SET_SPEED_FAILED, percentage=percentage
+        )
+
+    async def async_oscillate(self, oscillating: bool) -> None:
+        """Set the oscillation of HEC fan."""
+        await self.async_execute_hec_command(
+            ERROR_SET_OSCILLATE_FAILED, oscillate=oscillating
+        )
+
+    async def async_set_humidity(self, humidity: int) -> None:
+        """Set the target humidity for HEC device."""
+        if not (self._min_humidity <= humidity <= self._max_humidity):
+            _LOGGER.error(
+                "Humidity %d is out of range [%d-%d]",
+                humidity,
+                self._min_humidity,
+                self._max_humidity,
+            )
+            return
+
+        command_params: dict[str, Any] = {}
+
+        if not self.is_on:
+            command_params["power_switch"] = True
+
+        command_params["humidity"] = int(humidity)
+
+        await self.async_send_command_and_update(
+            ERROR_SET_HEC_HUMIDITY_FAILED, **command_params
+        )
+
+    async def async_execute_hec_command(
+        self,
+        error_translation_key: str,
+        percentage: int | None = None,
+        preset_mode: str | None = None,
+        oscillate: bool | None = None,
+    ) -> None:
+        """Execute HEC command with common parameter handling."""
+        command_params: dict[str, Any] = {}
+
+        if not self.is_on:
+            command_params["power_switch"] = True
+
+        if percentage is not None and percentage > 0 and self._low_high_range:
+            # Convert percentage to speed level
+            speed_range = self._low_high_range[1] - self._low_high_range[0] + 1
+            speed_level = max(1, math.ceil((percentage / 100) * speed_range))
+            command_params["speed"] = speed_level
+
+        if preset_mode is not None:
+            command_params["mode"] = preset_mode.capitalize()
+
+        if oscillate is not None:
+            command_params["oscillate"] = oscillate
 
         await self.async_send_command_and_update(
             error_translation_key, **command_params

@@ -11,10 +11,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import DreoConfigEntry
 from .const import (
-    AIR_FAN_OSCILLATE_ENTITY,
     CIR_FAN_DEVICE_TYPE,
     CIR_FAN_OSCILLATE_ENTITY,
-    CIRCULATION_FAN_DEVICE_TYPE,
     ERROR_SET_OSCILLATE_FAILED,
 )
 from .coordinator import DreoDataUpdateCoordinator
@@ -37,7 +35,7 @@ async def async_setup_entry(
 
         for device in config_entry.runtime_data.devices:
             device_type = device.get("deviceType")
-            if device_type != CIRCULATION_FAN_DEVICE_TYPE:
+            if device_type != CIR_FAN_DEVICE_TYPE:
                 continue
 
             device_id = device.get("deviceSn")
@@ -90,7 +88,7 @@ class DreoOscillationSelect(DreoEntity, SelectEntity):
             label = direction_labels.get(direction, direction)
             self._attr_options.append(label)
 
-        self._attr_name = AIR_FAN_OSCILLATE_ENTITY
+        self._attr_name = CIR_FAN_OSCILLATE_ENTITY
         self._attr_icon = "mdi:fan-chevron-up"
 
         self._attr_current_option = (
@@ -103,12 +101,14 @@ class DreoOscillationSelect(DreoEntity, SelectEntity):
         if not self.coordinator.data:
             return
 
-        fan_data = self.coordinator.data
+        device_state_data = self.coordinator.data
+        self._attr_available = device_state_data.available
+
         if (
-            hasattr(fan_data, "oscillation_mode")
-            and fan_data.oscillation_mode is not None
+            hasattr(device_state_data, "oscillation_mode")
+            and device_state_data.oscillation_mode is not None
         ):
-            current_mode = fan_data.oscillation_mode
+            current_mode = device_state_data.oscillation_mode
             if current_mode in self._select_options:
                 index = self._select_options.index(current_mode)
                 self._attr_current_option = self._attr_options[index]
@@ -124,19 +124,21 @@ class DreoOscillationSelect(DreoEntity, SelectEntity):
         if option not in self._attr_options:
             _LOGGER.error("Invalid oscillation option: %s", option)
             return
+        command_params: dict[str, Any] = {}
+
+        if not self.coordinator.data or not self.coordinator.data.is_on:
+            command_params["power_switch"] = True
 
         option_index = self._attr_options.index(option)
         select_option = self._select_options[option_index]
 
         direction_modes = self.coordinator.model_config.get("selectOptions", [])
         if select_option in direction_modes:
-            await self.async_send_command_and_update(
-                ERROR_SET_OSCILLATE_FAILED, oscmode=select_option
-            )
-        else:
-            _LOGGER.error(
-                "Oscillation mode %s not found in device config", select_option
-            )
+            command_params["oscmode"] = select_option
+
+        await self.async_send_command_and_update(
+            ERROR_SET_OSCILLATE_FAILED, **command_params
+        )
 
     @property
     def available(self) -> bool:
@@ -146,3 +148,27 @@ class DreoOscillationSelect(DreoEntity, SelectEntity):
             and self.coordinator.data is not None
             and self.coordinator.data.available
         )
+
+    def _update_attributes(self) -> None:
+        """Update attributes from coordinator data."""
+        if not self.coordinator.data:
+            return
+
+        circulation_fan_data = self.coordinator.data
+        self._attr_available = circulation_fan_data.available
+
+        if circulation_fan_data.is_on:
+            oscillation_mode = getattr(circulation_fan_data, "oscillation_mode", None)
+            if oscillation_mode:
+                # Map device oscillation mode to display name
+                mode_mapping = {
+                    "fixed": "Fixed",
+                    "horizontal": "Horizontal",
+                    "vertical": "Vertical",
+                    "both": "Both",
+                }
+                self._attr_current_option = mode_mapping.get(oscillation_mode, "Fixed")
+            else:
+                self._attr_current_option = "Fixed"
+        else:
+            self._attr_current_option = None
