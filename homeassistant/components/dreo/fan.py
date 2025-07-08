@@ -352,10 +352,9 @@ class DreoHecFan(DreoEntity, FanEntity):
         if speed_range:
             self._low_high_range = tuple(speed_range)
         else:
-            self._low_high_range = (1, 4)  # Default for HEC
+            self._low_high_range = (1, 4)
         self._attr_preset_modes = model_config.get("preset_modes")
 
-        # HEC specific attributes for humidity
         humidity_range = model_config.get("humidity_range")
         if humidity_range:
             self._min_humidity = float(humidity_range[0])
@@ -383,19 +382,15 @@ class DreoHecFan(DreoEntity, FanEntity):
             self._attr_preset_mode = None
             self._attr_oscillating = None
         else:
-            # Map device mode to preset mode
             device_mode = hec_data.mode
-            if device_mode in ["Normal", "Auto", "Sleep", "Natural"]:
-                self._attr_preset_mode = device_mode.lower()
+            if device_mode in self._attr_preset_modes:
+                self._attr_preset_mode = device_mode
             else:
-                self._attr_preset_mode = "normal"
+                self._attr_preset_mode = "Normal"
 
-            # Set oscillation state
             self._attr_oscillating = getattr(hec_data, "oscillate", None)
 
-            # Calculate percentage from speed level
             if hec_data.speed_level and self._low_high_range:
-                # Convert speed level to percentage
                 speed_range = self._low_high_range[1] - self._low_high_range[0] + 1
                 percentage = (hec_data.speed_level / speed_range) * 100
                 self._attr_percentage = min(100, max(0, int(percentage)))
@@ -448,22 +443,17 @@ class DreoHecFan(DreoEntity, FanEntity):
 
         device_data = self.coordinator.data
         if hasattr(device_data, "speed_level") and device_data.speed_level is not None:
-            return self.speed_level_to_percentage(device_data.speed_level)
+            if not self._low_high_range:
+                return 0
+
+            min_speed, max_speed = self._low_high_range
+            if device_data.speed_level <= min_speed:
+                return 1
+            if device_data.speed_level >= max_speed:
+                return 100
+
+            return int((device_data.speed_level / max_speed) * 100)
         return None
-
-    def speed_level_to_percentage(self, speed_level: int) -> int:
-        """Convert speed level to percentage."""
-        if not self._low_high_range:
-            return 0
-
-        min_speed, max_speed = self._low_high_range
-        if speed_level <= min_speed:
-            return 1
-        if speed_level >= max_speed:
-            return 100
-
-        # Convert speed level to percentage (1-4 -> 25%, 50%, 75%, 100%)
-        return int((speed_level / max_speed) * 100)
 
     async def async_turn_on(
         self,
@@ -540,7 +530,6 @@ class DreoHecFan(DreoEntity, FanEntity):
             command_params["power_switch"] = True
 
         if percentage is not None and percentage > 0 and self._low_high_range:
-            # Convert percentage to speed level
             speed_range = self._low_high_range[1] - self._low_high_range[0] + 1
             speed_level = max(1, math.ceil((percentage / 100) * speed_range))
             command_params["speed"] = speed_level

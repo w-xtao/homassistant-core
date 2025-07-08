@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 type DreoConfigEntry = ConfigEntry[DreoData]
 
-PLATFORMS = [Platform.CLIMATE, Platform.FAN, Platform.SELECT]
+PLATFORMS = [Platform.CLIMATE, Platform.FAN, Platform.HUMIDIFIER, Platform.SELECT]
 
 
 @dataclass

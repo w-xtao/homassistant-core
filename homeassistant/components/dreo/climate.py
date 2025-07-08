@@ -90,7 +90,6 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
 
         self._attr_preset_modes = config.get("preset_modes", [])
 
-        # Initialize temperature range
         temp_range = config.get("temperature_range")
         if temp_range and len(temp_range) >= 2:
             self._attr_min_temp = float(temp_range[0])
@@ -99,7 +98,6 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
             self._attr_min_temp = 65.0
             self._attr_max_temp = 86.0
 
-        # Initialize humidity range
         humidity_range = config.get("humidity_range")
         if humidity_range and len(humidity_range) >= 2:
             self._attr_min_humidity = float(humidity_range[0])
@@ -127,7 +125,6 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
         if not self.coordinator.data:
             return
 
-        # Type check to ensure we're working with HAC device data
         if not isinstance(self.coordinator.data, DreoHacDeviceData):
             return
 
@@ -145,7 +142,6 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
             device_mode = hac_data.mode
             hvac_mode = hac_data.hvac_mode
 
-            # Ensure hvac_mode is a valid HVACMode
             if hvac_mode and hvac_mode in [mode.value for mode in HVACMode]:
                 self._attr_hvac_mode = HVACMode(hvac_mode)
             else:
