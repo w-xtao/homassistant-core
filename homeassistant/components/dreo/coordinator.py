@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util.percentage import ranged_value_to_percentage
 
 from .const import (
+    CEILING_FAN_DEVICE_TYPE,
     CIR_FAN_DEVICE_TYPE,
     DOMAIN,
     FAN_DEVICE_TYPE,
@@ -97,7 +98,12 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
     mode: str | None = None
     speed_level: int | None = None
     speed_percentage: int | None = None
-    oscillation_mode: str | None = None
+    swing_direction: str | None = None
+    rgb_state: bool | None = None
+    rgb_mode: str | None = None
+    rgb_color: int | None = None
+    rgb_brightness: int | None = None
+    rgb_speed: int | None = None
     model_config: dict[str, Any] | None = None
 
     def __init__(
@@ -107,7 +113,12 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
         mode: str | None = None,
         speed_level: int | None = None,
         speed_percentage: int | None = None,
-        oscillation_mode: str | None = None,
+        swing_direction: str | None = None,
+        rgb_state: bool | None = None,
+        rgb_mode: str | None = None,
+        rgb_color: int | None = None,
+        rgb_brightness: int | None = None,
+        rgb_speed: int | None = None,
         model_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize circulation fan device data."""
@@ -115,7 +126,12 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
         self.mode = mode
         self.speed_level = speed_level
         self.speed_percentage = speed_percentage
-        self.oscillation_mode = oscillation_mode
+        self.swing_direction = swing_direction
+        self.rgb_state = rgb_state
+        self.rgb_mode = rgb_mode
+        self.rgb_color = rgb_color
+        self.rgb_brightness = rgb_brightness
+        self.rgb_speed = rgb_speed
         self.model_config = model_config
 
     @staticmethod
@@ -143,10 +159,26 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
 
         if (osc_mode := status.get("oscmode")) is not None:
             direction_modes = model_config.get("selectOptions")
+
             if direction_modes and osc_mode in direction_modes:
-                fan_data.oscillation_mode = osc_mode
+                fan_data.swing_direction = osc_mode
             else:
-                fan_data.oscillation_mode = "fixed"
+                fan_data.swing_direction = "fixed"
+
+        if (rgb_switch := status.get("ambient_switch")) is not None:
+            fan_data.rgb_state = bool(rgb_switch)
+
+        if (rgb_mode := status.get("atmmode")) is not None:
+            fan_data.rgb_mode = str(rgb_mode)
+
+        if (rgb_color := status.get("atmcolor")) is not None:
+            fan_data.rgb_color = int(rgb_color)
+
+        if (rgb_brightness := status.get("atmbri")) is not None:
+            fan_data.rgb_brightness = int(rgb_brightness)
+
+        if (rgb_speed := status.get("atmspeed")) is not None:
+            fan_data.rgb_speed = int(rgb_speed)
 
         return fan_data
 
@@ -242,7 +274,6 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         speed_percentage: int | None = None,
         oscillate: bool | None = None,
         target_humidity: float | None = None,
-        current_humidity: float | None = None,
         model_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize HEC device data."""
@@ -252,7 +283,6 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         self.speed_percentage = speed_percentage
         self.oscillate = oscillate
         self.target_humidity = target_humidity
-        self.current_humidity = current_humidity
         self.model_config = model_config
 
     @staticmethod
@@ -267,7 +297,6 @@ class DreoHecDeviceData(DreoGenericDeviceData):
             model_config=model_config,
         )
 
-        # Handle device mode
         if (mode := status.get("mode")) is not None:
             hec_data.mode = str(mode)
 
@@ -285,11 +314,75 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         if (humidity := status.get("humidity")) is not None:
             hec_data.target_humidity = float(humidity)
 
-        # For current humidity, we might get it from a different field
-        if (current_humidity := status.get("current_humidity")) is not None:
-            hec_data.current_humidity = float(current_humidity)
-
         return hec_data
+
+
+class DreoCeilingFanDeviceData(DreoGenericDeviceData):
+    """Data specific to Dreo Ceiling Fan devices."""
+
+    mode: str | None = None
+    speed_level: int | None = None
+    speed_percentage: int | None = None
+    light_switch: bool | None = None
+    light_brightness: int | None = None
+    light_color_temp: int | None = None
+    model_config: dict[str, Any] | None = None
+
+    def __init__(
+        self,
+        available: bool = False,
+        is_on: bool = False,
+        mode: str | None = None,
+        speed_level: int | None = None,
+        speed_percentage: int | None = None,
+        light_switch: bool | None = None,
+        light_brightness: int | None = None,
+        light_color_temp: int | None = None,
+        model_config: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize ceiling fan device data."""
+        super().__init__(available, is_on)
+        self.mode = mode
+        self.speed_level = speed_level
+        self.speed_percentage = speed_percentage
+        self.light_switch = light_switch
+        self.light_brightness = light_brightness
+        self.light_color_temp = light_color_temp
+        self.model_config = model_config
+
+    @staticmethod
+    def process_ceiling_fan_data(
+        status: dict[str, Any], model_config: dict[str, Any]
+    ) -> DreoCeilingFanDeviceData:
+        """Process ceiling fan device specific data."""
+
+        ceiling_fan_data = DreoCeilingFanDeviceData(
+            available=status.get("connected", False),
+            is_on=status.get("power_switch", False),
+            model_config=model_config,
+        )
+
+        if (mode := status.get("mode")) is not None:
+            ceiling_fan_data.mode = str(mode)
+
+        if (speed := status.get("speed")) is not None:
+            ceiling_fan_data.speed_level = int(speed)
+            speed_range = model_config.get("speed_range")
+            if speed_range and len(speed_range) >= 2:
+                ceiling_fan_data.speed_percentage = int(
+                    ranged_value_to_percentage(tuple(speed_range), float(speed))
+                )
+
+        if (light_switch := status.get("light_switch")) is not None:
+            ceiling_fan_data.light_switch = bool(light_switch)
+
+        if (brightness := status.get("brightness")) is not None:
+            ceiling_fan_data.light_brightness = int(brightness)
+
+        if (color_temp := status.get("colortemp")) is not None:
+            ceiling_fan_data.light_color_temp = int(color_temp)
+
+        return ceiling_fan_data
 
 
 DreoDeviceData = (
@@ -297,6 +390,7 @@ DreoDeviceData = (
     | DreoCirculationFanDeviceData
     | DreoHacDeviceData
     | DreoHecDeviceData
+    | DreoCeilingFanDeviceData
 )
 
 
@@ -332,6 +426,8 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
             self.data_processor = (
                 DreoCirculationFanDeviceData.process_circulation_fan_data
             )
+        elif self.device_type == CEILING_FAN_DEVICE_TYPE:
+            self.data_processor = DreoCeilingFanDeviceData.process_ceiling_fan_data
         elif self.device_type == HAC_DEVICE_TYPE:
             self.data_processor = DreoHacDeviceData.process_hac_data
         elif self.device_type == HEC_DEVICE_TYPE:

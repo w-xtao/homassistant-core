@@ -9,6 +9,7 @@ from homeassistant.components.humidifier import (
     HumidifierEntity,
     HumidifierEntityFeature,
 )
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -47,6 +48,23 @@ async def async_setup_entry(
             if not device_id:
                 continue
 
+            # Debug entity support check
+            device_config = device.get("config", {})
+            entity_supports = device_config.get("entitySupports", [])
+            device_model = device.get("model")
+
+            _LOGGER.debug("Device %s config: %s", device_model, device_config)
+            _LOGGER.debug("Device %s entitySupports: %s", device_model, entity_supports)
+            _LOGGER.debug("Platform.HUMIDIFIER value: %s", Platform.HUMIDIFIER)
+
+            if Platform.HUMIDIFIER not in entity_supports:
+                _LOGGER.warning(
+                    "No humidifier entity support for model %s (entitySupports: %s)",
+                    device_model,
+                    entity_supports,
+                )
+                continue
+
             coordinator = config_entry.runtime_data.coordinators.get(device_id)
             if not coordinator:
                 _LOGGER.error("Coordinator not found for device %s", device_id)
@@ -81,20 +99,12 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
 
         model_config = coordinator.model_config
 
-        # Set humidity range from model config
         humidity_range = model_config.get("humidity_range")
         if humidity_range and len(humidity_range) >= 2:
             self._attr_min_humidity = int(humidity_range[0])
             self._attr_max_humidity = int(humidity_range[1])
-        else:
-            self._attr_min_humidity = 40
-            self._attr_max_humidity = 90
 
-        # Set available modes based on preset modes
-        preset_modes = model_config.get("preset_modes", [])
-        self._attr_available_modes = (
-            preset_modes if preset_modes else ["Normal", "Sleep", "Eco"]
-        )
+        self._attr_available_modes = model_config.get("preset_modes") or []
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -117,9 +127,6 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
         if hec_data.target_humidity is not None:
             self._attr_target_humidity = int(hec_data.target_humidity)
 
-        if hec_data.current_humidity is not None:
-            self._attr_current_humidity = int(hec_data.current_humidity)
-
         if (
             hec_data.mode
             and self._attr_available_modes
@@ -138,11 +145,6 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
     def mode(self) -> str | None:
         """Return the current mode."""
         return self._attr_mode
-
-    @property
-    def current_humidity(self) -> int | None:
-        """Return the current humidity."""
-        return self._attr_current_humidity
 
     @property
     def target_humidity(self) -> int | None:
@@ -174,7 +176,6 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
 
         command_params: dict[str, Any] = {}
 
-        # Turn on device if it's off
         if not self.is_on:
             command_params["power_switch"] = True
 
@@ -192,7 +193,6 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
 
         command_params: dict[str, Any] = {}
 
-        # Turn on device if it's off
         if not self.is_on:
             command_params["power_switch"] = True
 

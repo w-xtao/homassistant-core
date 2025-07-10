@@ -10,7 +10,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import ATTR_TEMPERATURE, Platform, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -53,6 +53,14 @@ async def async_setup_entry(
             if not device_id:
                 continue
 
+            if Platform.CLIMATE not in device.get("config", {}).get(
+                "entitySupports", []
+            ):
+                _LOGGER.warning(
+                    "No climate entity support for model %s", device.get("model")
+                )
+                continue
+
             coordinator = config_entry.runtime_data.coordinators.get(device_id)
             if not coordinator:
                 _LOGGER.error("Coordinator not found for device %s", device_id)
@@ -90,21 +98,15 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
 
         self._attr_preset_modes = config.get("preset_modes", [])
 
-        temp_range = config.get("temperature_range")
+        temp_range = config.get("temperature_range", [])
         if temp_range and len(temp_range) >= 2:
             self._attr_min_temp = float(temp_range[0])
             self._attr_max_temp = float(temp_range[1])
-        else:
-            self._attr_min_temp = 65.0
-            self._attr_max_temp = 86.0
 
-        humidity_range = config.get("humidity_range")
+        humidity_range = config.get("humidity_range", [])
         if humidity_range and len(humidity_range) >= 2:
             self._attr_min_humidity = float(humidity_range[0])
             self._attr_max_humidity = float(humidity_range[1])
-        else:
-            self._attr_min_humidity = 40.0
-            self._attr_max_humidity = 70.0
 
         speed_range = config.get("speed_range", [])
         self._speed_range = tuple(speed_range)
@@ -135,7 +137,6 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
 
         if not hac_data.is_on:
             self._attr_hvac_mode = HVACMode.OFF
-            self._attr_fan_mode = None
             self._attr_preset_mode = None
             self._attr_current_temperature = None
         else:
@@ -149,7 +150,7 @@ class DreoHacClimate(DreoEntity, ClimateEntity):
 
             self._attr_preset_mode = None
 
-            if device_mode in ["sleep", "eco"]:
+            if self._attr_preset_modes and device_mode in self._attr_preset_modes:
                 self._attr_preset_mode = device_mode
                 self._attr_hvac_mode = HVACMode.COOL
 
