@@ -46,6 +46,9 @@
     },
     "set_temperature_failed": {
       "message": "Temperature can only be set in Cool mode"
+    },
+    "set_follow_mode_failed": {
+      "message": "Failed to set follow mode"
     }
   }
 }

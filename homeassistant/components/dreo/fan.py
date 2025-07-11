@@ -305,6 +305,7 @@ class DreoCirculationFan(DreoEntity, FanEntity):
         error_translation_key: str,
         percentage: int | None = None,
         preset_mode: str | None = None,
+        follow_mode: bool | None = None,
     ) -> None:
         """Execute circulation fan command with parameter handling."""
         command_params: dict[str, Any] = {}
