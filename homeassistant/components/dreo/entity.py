@@ -51,6 +51,17 @@ class DreoEntity(CoordinatorEntity[DreoDataUpdateCoordinator]):
             hw_version=device.get("mcuFirmwareVersion"),
         )
 
+    @property
+    def available(self) -> bool:
+        """Return if entity is available: coordinator success AND device online."""
+        base_available = super().available
+        data = getattr(self.coordinator, "data", None)
+        return (
+            base_available
+            and data is not None
+            and bool(getattr(self, "_attr_available", False))
+        )
+
     async def async_send_command_and_update(
         self, error_translation_key: str, **kwargs: Any
     ) -> None:
@@ -72,3 +83,14 @@ class DreoEntity(CoordinatorEntity[DreoDataUpdateCoordinator]):
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key=error_translation_key
             ) from ex
+
+    def get_coordinator_field(self, field_name: str, default: Any = None) -> Any:
+        """Get a field value from coordinator data if it exists and is not None."""
+        if not self.coordinator.data:
+            return default
+
+        if hasattr(self.coordinator.data, field_name):
+            value = getattr(self.coordinator.data, field_name)
+            return value if value is not None else default
+
+        return default

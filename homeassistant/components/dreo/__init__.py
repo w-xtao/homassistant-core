@@ -14,6 +14,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
+from .const import DreoEntityConfigSpec
 from .coordinator import DreoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ PLATFORMS = [
     Platform.HUMIDIFIER,
     Platform.LIGHT,
     Platform.SELECT,
+    Platform.SWITCH,
 ]
 
 
@@ -86,7 +88,7 @@ async def async_setup_device_coordinator(
     device_model = device.get("model")
     device_id = device.get("deviceSn")
     device_type = device.get("deviceType")
-    model_config = device.get("config")
+    model_config = device.get(DreoEntityConfigSpec.TOP_CONFIG, {})
 
     if not device_id or not device_model or not device_type:
         return
