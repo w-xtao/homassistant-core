@@ -226,6 +226,7 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
     _attr_current_humidity: int | None = None
     _attr_target_humidity: int | None = None
     _attr_available_modes: list[str] = []
+    _attr_directive_graph: dict[str, Any] = {}
 
     def __init__(
         self,
@@ -247,8 +248,11 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
             self._attr_min_humidity = 30
             self._attr_max_humidity = 90
 
+        humidity_mode_config = humidifier_config.get("humidity_mode_config", {})
+
         # Set available modes
-        self._attr_available_modes = humidifier_config.get("preset_modes", [])
+        self._attr_available_modes = humidity_mode_config.get("preset_modes", [])
+        self._attr_directive_graph = humidity_mode_config.get("directive_graph", {})
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -271,7 +275,6 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
         if humidifier_data.target_humidity is not None:
             self._attr_target_humidity = int(humidifier_data.target_humidity)
 
-        # Set mode - default to first available mode if current mode is not in list
         if (
             humidifier_data.mode
             and self._attr_available_modes
@@ -326,14 +329,17 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
         if not self.is_on:
             command_params[DreoDirective.POWER_SWITCH] = True
 
-        # Determine which humidity field to use based on current mode
         current_mode = self.mode
-        if current_mode == "Auto":
-            command_params["rh_auto"] = int(humidity)
-        elif current_mode == "Sleep":
-            command_params["rh_sleep"] = int(humidity)
-        else:
-            command_params[DreoDirective.HUMIDITY] = int(humidity)
+        mode_graph = self._attr_directive_graph.get(current_mode or "", {})
+        directive_name = mode_graph.get("name")
+        if current_mode is not None and current_mode in mode_graph.get(
+            "out_of_services", []
+        ):
+            _LOGGER.error("Mode %s is not support this function", self.mode)
+            return
+
+        if directive_name:
+            command_params[directive_name] = int(humidity)
 
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HEC_HUMIDITY_FAILED, **command_params
