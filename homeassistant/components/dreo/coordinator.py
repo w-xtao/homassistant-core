@@ -516,6 +516,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     fog_level: int | None = None
     led_level: str | None = None
     rgb_level: str | None = None
+    rgb_threshold: str | None = None
     filter_time: int | None = None
     work_time: int | None = None
 
@@ -529,6 +530,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         fog_level: int | None = None,
         led_level: str | None = None,
         rgb_level: str | None = None,
+        rgb_threshold: str | None = None,
         filter_time: int | None = None,
         work_time: int | None = None,
         model_config: dict[str, Any] | None = None,
@@ -541,6 +543,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.fog_level = fog_level
         self.led_level = led_level
         self.rgb_level = rgb_level
+        self.rgb_threshold = rgb_threshold
         self.filter_time = filter_time
         self.work_time = work_time
         self.model_config = model_config
@@ -576,6 +579,9 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
 
         if (rgb_level := state.get("rgblevel")) is not None:
             humidifier_data.rgb_level = str(rgb_level)
+
+        if (rgb_threshold := state.get("rgbth")) is not None:
+            humidifier_data.rgb_threshold = str(rgb_threshold)
 
         if (filter_time := state.get("filter_time")) is not None:
             humidifier_data.filter_time = int(filter_time)

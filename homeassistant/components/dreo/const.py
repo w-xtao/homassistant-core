@@ -14,7 +14,7 @@ class DreoEntityConfigSpec(StrEnum):
     RGBLIGHT_ENTITY_CONF = "rgbLight_entity_config"
     TOGGLE_ENTITY_CONF = "toggle_entity_config"
     SELECT_ENTITY_CONF = "select_entity_config"
-
+    HUMIDIFIER_ENTITY_CONF = "humidifier_entity_config"
 
 class DreoFeatureSpec(StrEnum):
     """Dreo value range keys."""
@@ -27,7 +27,9 @@ class DreoFeatureSpec(StrEnum):
     RGB_BRIGHTNESS = "rgb_brightness"
     LIGHT_MODES = "light_modes"
     COLOR_TEMPERATURE_RANGE = "color_temperature_range"
-
+    HUMIDIFIER_MODE_CONFIG = "humidity_mode_config"
+    DIRECTIVE_GRAPH = "directive_graph"
+    DESCRIPTION_LIMITS = "description_limits"
 
 class DreoDirective(StrEnum):
     """Dreo directive keys."""
@@ -52,6 +54,7 @@ class DreoDirective(StrEnum):
     AMBIENT_RGB_SPEED = "atmspeed"
     LIGHT_BRIGHTNESS = "brightness"
     LIGHT_COLOR_TEMP = "colortemp"
+    RGB_HUMIDITY_THRESHOLD = "rgbth"
 
 
 class DreoDeviceType(StrEnum):
@@ -91,3 +94,6 @@ class DreoErrorCode(StrEnum):
     SET_LED_SWITCH_FAILED = "set_led_switch_failed"
     SET_LIGHTSENSOR_SWITCH_FAILED = "set_lightsensor_switch_failed"
     SET_MUTE_SWITCH_FAILED = "set_mute_switch_failed"
+    SET_HUMIDIFIER_HUMIDITY_FAILED = "set_humidifier_humidity_failed"
+    HUMIDITY_NOT_SUPPORTED_IN_MODE = "humidity_not_supported_in_mode"
+    SET_RGB_THRESHOLD_FAILED = "set_rgb_threshold_failed"

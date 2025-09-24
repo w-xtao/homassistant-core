@@ -153,6 +153,8 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
     @property
     def is_on(self) -> bool:
         """Return True if the humidifier is on."""
+        if self._attr_is_on is None:
+            return False
         return self._attr_is_on
 
     @property
@@ -227,6 +229,9 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
     _attr_target_humidity: int | None = None
     _attr_available_modes: list[str] = []
     _attr_directive_graph: dict[str, Any] = {}
+    _attr_description_limits: dict[str, Any] = {}
+    _attr_fog_level_range: list[int] = [1, 6]
+    _attr_rgb_humidity_threshold: str | None = None
 
     def __init__(
         self,
@@ -237,10 +242,10 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
         super().__init__(device, coordinator, "humidifier", "Humidifier")
 
         model_config = coordinator.model_config
-        humidifier_config = model_config.get("humidifier_entity_config", {})
+        humidifier_config = model_config.get(DreoEntityConfigSpec.HUMIDIFIER_ENTITY_CONF, {})
 
         # Set humidity range
-        humidity_range = humidifier_config.get("humidity_range")
+        humidity_range = humidifier_config.get(DreoFeatureSpec.HUMIDITY_RANGE)
         if humidity_range and len(humidity_range) >= 2:
             self._attr_min_humidity = int(humidity_range[0])
             self._attr_max_humidity = int(humidity_range[1])
@@ -248,11 +253,19 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
             self._attr_min_humidity = 30
             self._attr_max_humidity = 90
 
-        humidity_mode_config = humidifier_config.get("humidity_mode_config", {})
+        humidity_mode_config = humidifier_config.get(DreoFeatureSpec.HUMIDIFIER_MODE_CONFIG, {})
 
-        # Set available modes
-        self._attr_available_modes = humidity_mode_config.get("preset_modes", [])
-        self._attr_directive_graph = humidity_mode_config.get("directive_graph", {})
+        self._attr_description_limits = humidifier_config.get(DreoFeatureSpec.DESCRIPTION_LIMITS, {})
+        self._attr_available_modes = humidity_mode_config.get(DreoFeatureSpec.PRESET_MODES, [])
+        self._attr_directive_graph = humidity_mode_config.get(DreoFeatureSpec.DIRECTIVE_GRAPH, {})
+
+        # Set fog_level range from config
+        fog_level_range = humidifier_config.get("fog_level_range", [1, 6])
+        if len(fog_level_range) >= 2:
+            self._attr_fog_level_range = [int(fog_level_range[0]), int(fog_level_range[1])]
+        else:
+            self._attr_fog_level_range = [1, 6]
+
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -275,20 +288,41 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
         if humidifier_data.target_humidity is not None:
             self._attr_target_humidity = int(humidifier_data.target_humidity)
 
+        # Update RGB humidity threshold
+        if hasattr(humidifier_data, 'rgb_threshold') and humidifier_data.rgb_threshold is not None:
+            self._attr_rgb_humidity_threshold = str(humidifier_data.rgb_threshold)
+
         if (
             humidifier_data.mode
             and self._attr_available_modes
             and humidifier_data.mode in self._attr_available_modes
         ):
             self._attr_mode = humidifier_data.mode
-        elif self._attr_available_modes:
-            self._attr_mode = self._attr_available_modes[0]
+
+        if self._attr_mode == "Manual":
+            min_fog, max_fog = self._attr_fog_level_range
+            self._attr_min_humidity = min_fog
+            self._attr_max_humidity = 100
+
+            if (hasattr(humidifier_data, 'fog_level') and
+                humidifier_data.fog_level is not None):
+                fog_level = int(humidifier_data.fog_level)
+                percentage = int(min_fog + (fog_level - min_fog) / (max_fog - min_fog) * (100 - min_fog))
+                self._attr_target_humidity = percentage
         else:
-            self._attr_mode = "Manual"
+            model_config = self.coordinator.model_config
+            humidifier_config = model_config.get(DreoEntityConfigSpec.HUMIDIFIER_ENTITY_CONF, {})
+            humidity_range = humidifier_config.get(DreoFeatureSpec.HUMIDITY_RANGE)
+            if humidity_range and len(humidity_range) >= 2:
+                self._attr_min_humidity = int(humidity_range[0])
+                self._attr_max_humidity = int(humidity_range[1])
+
 
     @property
     def is_on(self) -> bool:
         """Return True if the humidifier is on."""
+        if self._attr_is_on is None:
+            return False
         return self._attr_is_on
 
     @property
@@ -330,16 +364,20 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
             command_params[DreoDirective.POWER_SWITCH] = True
 
         current_mode = self.mode
+
         mode_graph = self._attr_directive_graph.get(current_mode or "", {})
         directive_name = mode_graph.get("name")
-        if current_mode is not None and current_mode in mode_graph.get(
-            "out_of_services", []
-        ):
-            _LOGGER.error("Mode %s is not support this function", self.mode)
+        if not directive_name:
+            _LOGGER.error("Directive name not found for mode %s", current_mode)
             return
 
         if directive_name:
-            command_params[directive_name] = int(humidity)
+            if current_mode == "Manual":
+                min_fog, max_fog = self._attr_fog_level_range
+                fog_level = max(min_fog, min(max_fog, round((humidity - min_fog) / (100 - min_fog) * (max_fog - min_fog) + min_fog)))
+                command_params[directive_name] = fog_level
+            else:
+                command_params[directive_name] = int(humidity)
 
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HEC_HUMIDITY_FAILED, **command_params
@@ -361,3 +399,29 @@ class DreoHumidifier(DreoEntity, HumidifierEntity):
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HUMIDIFIER_MODE_FAILED, **command_params
         )
+
+    @property
+    def rgb_humidity_threshold(self) -> str | None:
+        """Return the RGB humidity threshold setting."""
+        return self._attr_rgb_humidity_threshold
+
+    async def async_set_rgb_humidity_threshold(self, threshold: str) -> None:
+        """Set the RGB humidity threshold."""
+        # Validate threshold format (should be like "33,66")
+        if not self._validate_rgb_threshold(threshold):
+            _LOGGER.error("Invalid RGB threshold format: %s", threshold)
+            return
+
+        command_params: dict[str, Any] = {}
+        command_params[DreoDirective.RGB_HUMIDITY_THRESHOLD] = threshold
+
+        await self.async_send_command_and_update(
+            DreoErrorCode.SET_RGB_THRESHOLD_FAILED, **command_params
+        )
+
+    def _validate_rgb_threshold(self, threshold: str) -> bool:
+        """Validate RGB threshold format."""
+        import re
+        # Should match pattern like "33,66" (2-3 digits, comma, 2-3 digits)
+        pattern = r'^\d{2,3},\d{2,3}$'
+        return bool(re.match(pattern, threshold))
