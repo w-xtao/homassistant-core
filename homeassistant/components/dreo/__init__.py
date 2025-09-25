@@ -26,7 +26,9 @@ PLATFORMS = [
     Platform.FAN,
     Platform.HUMIDIFIER,
     Platform.LIGHT,
+    Platform.NUMBER,
     Platform.SELECT,
+    Platform.SENSOR,
     Platform.SWITCH,
 ]
 

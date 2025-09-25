@@ -144,7 +144,7 @@ class DreoToggleSwitch(DreoEntity, SwitchEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updates from the coordinator to refresh on/off state."""
 
-        state = self.get_coordinator_field(self._field)
+        state = bool(getattr(self.coordinator.data, self._field, True))
         self._attr_is_on = bool(state) if state is not None else False
         super()._handle_coordinator_update()
 

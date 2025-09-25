@@ -52,6 +52,7 @@ async def async_setup_entry(
                 DreoDeviceType.HAP,
                 DreoDeviceType.HEC,
                 DreoDeviceType.RGBLIGHT_CEILING_FAN,
+                DreoDeviceType.DEHUMIDIFIER,
             ]:
                 continue
 

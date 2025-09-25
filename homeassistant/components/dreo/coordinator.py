@@ -401,7 +401,6 @@ class DreoHapDeviceData(DreoGenericDeviceData):
     lightsensor_switch: bool | None = None
     childlock_switch: bool | None = None
     mute_switch: bool | None = None
-    schedule_switch: bool | None = None
     display_mode: str | None = None
     model_config: dict[str, Any] | None = None
 
@@ -429,7 +428,6 @@ class DreoHapDeviceData(DreoGenericDeviceData):
         self.lightsensor_switch = lightsensor_switch
         self.childlock_switch = childlock_switch
         self.mute_switch = mute_switch
-        self.schedule_switch = schedule_switch
         self.display_mode = display_mode
         self.model_config = model_config
 
@@ -448,6 +446,9 @@ class DreoHapDeviceData(DreoGenericDeviceData):
         if (mode := state.get(DreoDirective.MODE)) is not None:
             hap_data.mode = str(mode)
 
+        if (display_mode := state.get(DreoDirective.DISPLAY_MODE)) is not None:
+            hap_data.display_mode = str(display_mode)
+
         if (speed := state.get(DreoDirective.SPEED)) is not None:
             hap_data.speed_level = int(speed)
             speed_range = get_conf(
@@ -465,46 +466,66 @@ class DreoHapDeviceData(DreoGenericDeviceData):
         return hap_data
 
 
-def _update_dreo_humidifier_data(
-    state: dict[str, Any], model_config: dict[str, Any]
-) -> DreoHumidifierDeviceData:
-    """Process Humidifier device specific data."""
+class DreoDehumidifierDeviceData(DreoGenericDeviceData):
+    """Data specific to Dreo Dehumidifier devices (HDH)."""
 
-    humidifier_data = DreoHumidifierDeviceData(
-        available=state.get(DreoDirective.CONNECTED, False),
-        is_on=state.get(DreoDirective.POWER_SWITCH, False),
-        model_config=model_config,
-    )
+    mode: str | None = None
+    wind_level: str | None = None
+    target_humidity: float | None = None
+    current_humidity: float | None = None
+    rgb_threshold: str | None = None
+    filter_threshold: int | None = None
+    work_time: int | None = None
+    model_config: dict[str, Any] | None = None
 
-    if (mode := state.get(DreoDirective.MODE)) is not None:
-        humidifier_data.mode = str(mode)
+    def __init__(
+        self,
+        available: bool = False,
+        is_on: bool = False,
+        mode: str | None = None,
+        wind_level: str | None = None,
+        target_humidity: float | None = None,
+        current_humidity: float | None = None,
+        model_config: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize dehumidifier device data."""
+        super().__init__(available, is_on)
+        self.mode = mode
+        self.wind_level = wind_level
+        self.target_humidity = target_humidity
+        self.current_humidity = current_humidity
+        self.model_config = model_config
 
-    # Humidity ranges - different for different modes
-    if (rh_auto := state.get("rh_auto")) is not None:
-        humidifier_data.target_humidity = float(rh_auto)
-    elif (rh_sleep := state.get("rh_sleep")) is not None:
-        humidifier_data.target_humidity = float(rh_sleep)
-    elif (humidity := state.get(DreoDirective.HUMIDITY)) is not None:
-        humidifier_data.target_humidity = float(humidity)
+    @staticmethod
+    def process_dehumidifier_data(
+        state: dict[str, Any], model_config: dict[str, Any]
+    ) -> DreoDehumidifierDeviceData:
+        """Process dehumidifier device specific data."""
 
-    if (fog_level := state.get("fog_level")) is not None:
-        humidifier_data.fog_level = int(fog_level)
+        hdh = DreoDehumidifierDeviceData(
+            available=state.get(DreoDirective.CONNECTED, False),
+            is_on=state.get(DreoDirective.POWER_SWITCH, False),
+            model_config=model_config,
+        )
 
-    if (led_level := state.get("ledlevel")) is not None:
-        humidifier_data.led_level = str(led_level)
+        if (mode := state.get(DreoDirective.MODE)) is not None:
+            hdh.mode = str(mode)
 
-    if (rgb_level := state.get("rgblevel")) is not None:
-        humidifier_data.rgb_level = str(rgb_level)
+        if (wind := state.get("windlevel")) is not None:
+            hdh.wind_level = str(wind)
 
-    if (filter_time := state.get("filter_time")) is not None:
-        humidifier_data.filter_time = int(filter_time)
+        if (rh := state.get("rh_auto")) is not None:
+            hdh.target_humidity = float(rh)
 
-    if (work_time := state.get("work_time")) is not None:
-        humidifier_data.work_time = int(work_time)
+        if (humidity := state.get("humidity_sensor")) is not None:
+            hdh.current_humidity = float(humidity)
 
-    _set_toggle_switches_to_state(humidifier_data, state, model_config)
+        if (flt := state.get("filter_threshold")) is not None:
+            hdh.filter_threshold = int(flt)
 
-    return humidifier_data
+        _set_toggle_switches_to_state(hdh, state, model_config)
+
+        return hdh
 
 
 class DreoHumidifierDeviceData(DreoGenericDeviceData):
@@ -566,10 +587,12 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         # Humidity ranges - different for different modes
         if (rh_auto := state.get("rh_auto")) is not None:
             humidifier_data.target_humidity = float(rh_auto)
-        elif (rh_sleep := state.get("rh_sleep")) is not None:
+
+        if (rh_sleep := state.get("rh_sleep")) is not None:
             humidifier_data.target_humidity = float(rh_sleep)
-        elif (humidity := state.get(DreoDirective.HUMIDITY)) is not None:
-            humidifier_data.target_humidity = float(humidity)
+
+        if (humidity := state.get("humidity_sensor")) is not None:
+            humidifier_data.current_humidity = float(humidity)
 
         if (fog_level := state.get("fog_level")) is not None:
             humidifier_data.fog_level = int(fog_level)
@@ -580,7 +603,7 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         if (rgb_level := state.get("rgblevel")) is not None:
             humidifier_data.rgb_level = str(rgb_level)
 
-        if (rgb_threshold := state.get("rgbth")) is not None:
+        if (rgb_threshold := state.get("rgb_threshold")) is not None:
             humidifier_data.rgb_threshold = str(rgb_threshold)
 
         if (filter_time := state.get("filter_time")) is not None:
@@ -707,6 +730,7 @@ DreoDeviceData = (
     | DreoHecDeviceData
     | DreoHapDeviceData
     | DreoHumidifierDeviceData
+    | DreoDehumidifierDeviceData
     | DreoCeilingFanDeviceData
 )
 
@@ -755,7 +779,9 @@ class DreoDataUpdateCoordinator(DataUpdateCoordinator[DreoDeviceData | None]):
         elif self.device_type == DreoDeviceType.HAP:
             self.data_processor = DreoHapDeviceData.process_hap_data
         elif self.device_type == DreoDeviceType.HUMIDIFIER:
-            self.data_processor = _update_dreo_humidifier_data
+            self.data_processor = DreoHumidifierDeviceData.process_humidifier_data
+        elif self.device_type == DreoDeviceType.DEHUMIDIFIER:
+            self.data_processor = DreoDehumidifierDeviceData.process_dehumidifier_data
         else:
             _LOGGER.warning(
                 "Unsupported device type: %s for model: %s - data will not be processed",

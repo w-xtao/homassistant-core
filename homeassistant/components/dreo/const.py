@@ -16,6 +16,7 @@ class DreoEntityConfigSpec(StrEnum):
     SELECT_ENTITY_CONF = "select_entity_config"
     HUMIDIFIER_ENTITY_CONF = "humidifier_entity_config"
 
+
 class DreoFeatureSpec(StrEnum):
     """Dreo value range keys."""
 
@@ -30,6 +31,7 @@ class DreoFeatureSpec(StrEnum):
     HUMIDIFIER_MODE_CONFIG = "humidity_mode_config"
     DIRECTIVE_GRAPH = "directive_graph"
     DESCRIPTION_LIMITS = "description_limits"
+
 
 class DreoDirective(StrEnum):
     """Dreo directive keys."""
@@ -54,7 +56,7 @@ class DreoDirective(StrEnum):
     AMBIENT_RGB_SPEED = "atmspeed"
     LIGHT_BRIGHTNESS = "brightness"
     LIGHT_COLOR_TEMP = "colortemp"
-    RGB_HUMIDITY_THRESHOLD = "rgbth"
+    RGB_HUMIDITY_THRESHOLD = "rgb_threshold"
 
 
 class DreoDeviceType(StrEnum):
@@ -68,6 +70,7 @@ class DreoDeviceType(StrEnum):
     HEC = "hec"  # Hybrid Evaporative Cooler
     HAP = "hap"  # Air Purifier
     HUMIDIFIER = "humidifier"  # Humidifier
+    DEHUMIDIFIER = "dehumidifier"  # Dehumidifier
 
 
 CIR_FAN_SWING_ENTITY = "swing_direction"
