@@ -1,5 +1,6 @@
 """Dreo device base entity."""
 
+import asyncio
 from functools import partial
 from typing import Any
 
@@ -62,7 +63,12 @@ class DreoEntity(CoordinatorEntity[DreoDataUpdateCoordinator]):
                     self.coordinator.client.update_status, self._device_id, **kwargs
                 )
             )
-            await self.coordinator.async_refresh()
+
+            async def _refresh_later() -> None:
+                await asyncio.sleep(0.3)
+                await self.coordinator.async_request_refresh()
+
+            self.coordinator.hass.async_create_task(_refresh_later())
         except (
             DreoException,
             DreoBusinessException,
@@ -72,3 +78,22 @@ class DreoEntity(CoordinatorEntity[DreoDataUpdateCoordinator]):
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key=error_translation_key
             ) from ex
+
+    def _set_attrs(self, target: Any, attrs: dict[str, Any]) -> None:
+        """Safely set multiple attributes on a target object.
+
+        Only sets attributes that exist on the target to avoid AttributeError.
+        """
+        for name, value in attrs.items():
+            if hasattr(target, name):
+                setattr(target, name, value)
+
+    def _set_attrs_if(
+        self, condition: bool, target: Any, attrs: dict[str, Any]
+    ) -> None:
+        """Set attributes on target if condition is true.
+
+        This is a convenience wrapper around _set_attrs.
+        """
+        if condition:
+            self._set_attrs(target, attrs)

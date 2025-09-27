@@ -388,6 +388,11 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         if (humidity := state.get(DreoDirective.HUMIDITY)) is not None:
             hec_data.target_humidity = float(humidity)
 
+        if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
+            hec_data.current_humidity = float(humidity)
+
+        _set_toggle_switches_to_state(hec_data, state, model_config)
+
         return hec_data
 
 
@@ -517,7 +522,7 @@ class DreoDehumidifierDeviceData(DreoGenericDeviceData):
         if (rh := state.get("rh_auto")) is not None:
             hdh.target_humidity = float(rh)
 
-        if (humidity := state.get("humidity_sensor")) is not None:
+        if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
             hdh.current_humidity = float(humidity)
 
         if (flt := state.get("filter_threshold")) is not None:

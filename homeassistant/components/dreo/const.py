@@ -8,6 +8,7 @@ DOMAIN = "dreo"
 class DreoEntityConfigSpec(StrEnum):
     """Dreo config keys."""
 
+    ENTITY_SUPPORTS = "entitySupports"
     TOP_CONFIG = "config"
     FAN_ENTITY_CONF = "fan_entity_config"
     LIGHT_ENTITY_CONF = "light_entity_config"
@@ -15,6 +16,7 @@ class DreoEntityConfigSpec(StrEnum):
     TOGGLE_ENTITY_CONF = "toggle_entity_config"
     SELECT_ENTITY_CONF = "select_entity_config"
     HUMIDIFIER_ENTITY_CONF = "humidifier_entity_config"
+    NUMBER_ENTITY_CONF = "number_entity_config"
 
 
 class DreoFeatureSpec(StrEnum):
@@ -31,6 +33,13 @@ class DreoFeatureSpec(StrEnum):
     HUMIDIFIER_MODE_CONFIG = "humidity_mode_config"
     DIRECTIVE_GRAPH = "directive_graph"
     DESCRIPTION_LIMITS = "description_limits"
+    AMBIENT_THRESHOLD = "ambient_threshold"
+    SLIDE_COMPONENT = "slide_component"
+    STATE_ATTR_NAME = "state_attr_name"
+    DIRECTIVE_NAME = "directive_name"
+    ATTR_NAME = "attr_name"
+    ATTR_ICON = "attr_icon"
+    THRESHOLD_RANGE = "threshold_range"
 
 
 class DreoDirective(StrEnum):
@@ -39,6 +48,7 @@ class DreoDirective(StrEnum):
     CONNECTED = "connected"
     POWER_SWITCH = "power_switch"
     AMBIENT_SWITCH = "ambient_switch"
+    AMBIENT_LIGHT_SWITCH = "ambient_light_switch"
     LIGHT_SWITCH = "light_switch"
     MODE = "mode"
     OSCILLATE = "oscillate"
@@ -57,6 +67,7 @@ class DreoDirective(StrEnum):
     LIGHT_BRIGHTNESS = "brightness"
     LIGHT_COLOR_TEMP = "colortemp"
     RGB_HUMIDITY_THRESHOLD = "rgb_threshold"
+    HUMIDITY_SENSOR = "humidity_sensor"
 
 
 class DreoDeviceType(StrEnum):
