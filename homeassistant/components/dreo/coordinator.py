@@ -39,8 +39,11 @@ def _set_toggle_switches_to_state(
     )
     for toggle_switch in toggle_switches.values():
         field = toggle_switch.get("field")
+        operable_when_off = toggle_switch.get("operable_when_off", False)
         if (val := state.get(field)) is not None:
             setattr(data_obj, field, bool(val))
+        if not operable_when_off and not data_obj.is_on:
+            setattr(data_obj, field, False)
 
 
 def get_conf_section(

@@ -6,6 +6,7 @@ import contextlib
 import logging
 from typing import Any
 
+from .status_dependency import DreotStatusDependency
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -40,21 +41,17 @@ async def async_setup_entry(
                 DreoEntityConfigSpec.ENTITY_SUPPORTS, []
             )
 
+            if not has_number_support:
+                continue
+
             coordinator = config_entry.runtime_data.coordinators.get(device_id)
             if not coordinator:
                 _LOGGER.error("Coordinator not found for device %s", device_id)
                 continue
 
-            if not isinstance(coordinator.data, DreoHumidifierDeviceData):
-                continue
-
-            rng = coordinator.model_config.get(
+            threshold_config = coordinator.model_config.get(
                 DreoEntityConfigSpec.HUMIDIFIER_ENTITY_CONF, {}
             ).get(DreoFeatureSpec.AMBIENT_THRESHOLD, [])
-            has_conf = isinstance(rng, (list, tuple)) and len(rng) >= 2
-
-            if not (has_number_support or has_conf):
-                continue
 
             # Add generic slide components
             number_config = coordinator.model_config.get(
@@ -63,7 +60,7 @@ async def async_setup_entry(
             slide_config = number_config.get(DreoFeatureSpec.SLIDE_COMPONENT)
             if slide_config:
                 numbers.append(DreoSlideNumber(device, coordinator))
-            else:
+            elif threshold_config :
                 numbers.append(DreoRgbThresholdLow(device, coordinator))
                 numbers.append(DreoRgbThresholdHigh(device, coordinator))
 
@@ -82,30 +79,30 @@ class DreoSlideNumber(DreoEntity, NumberEntity):
         coordinator: DreoDataUpdateCoordinator,
     ) -> None:
         """Initialize the slide number entity."""
-        # Get config from coordinator.model_config
         number_config = coordinator.model_config.get(
             DreoEntityConfigSpec.NUMBER_ENTITY_CONF, {}
         )
-        slide_config = number_config.get(DreoFeatureSpec.SLIDE_COMPONENT, {})
+        slide_component = number_config.get(DreoFeatureSpec.SLIDE_COMPONENT, {})
 
-        attr_name = slide_config.get(DreoFeatureSpec.ATTR_NAME, "Slider")
+        attr_name = slide_component.get(DreoFeatureSpec.ATTR_NAME, "Slider")
         super().__init__(device, coordinator, "number", attr_name)
 
         device_id = device.get("deviceSn")
-        directive_name = slide_config.get(DreoFeatureSpec.DIRECTIVE_NAME, "slider")
-        self._attr_unique_id = f"{device_id}_{directive_name}"
+        directive_name = slide_component.get(DreoFeatureSpec.DIRECTIVE_NAME, "slider")
+        self._attr_unique_id = f"{device_id}_{attr_name}"
 
         self._attr_mode = NumberMode.SLIDER
         self._directive_name = directive_name
-        self._state_attr_name = slide_config.get(DreoFeatureSpec.STATE_ATTR_NAME)
+        self._state_attr_name = slide_component.get(DreoFeatureSpec.STATE_ATTR_NAME)
+        self._status_dependency = DreotStatusDependency(
+            slide_component.get(DreoFeatureSpec.STATUS_AVAILABLE_DEPENDENCIES, [])
+        )
 
-        # Set icon
-        icon = slide_config.get(DreoFeatureSpec.ATTR_ICON)
+        icon = slide_component.get(DreoFeatureSpec.ATTR_ICON)
         if icon:
             self._attr_icon = icon
 
-        # Set range from config
-        threshold_range = slide_config.get(DreoFeatureSpec.THRESHOLD_RANGE, [0, 100])
+        threshold_range = slide_component.get(DreoFeatureSpec.THRESHOLD_RANGE, [0, 100])
         if isinstance(threshold_range, (list, tuple)) and len(threshold_range) >= 2:
             self._attr_native_min_value = float(threshold_range[0])
             self._attr_native_max_value = float(threshold_range[1])
@@ -114,36 +111,40 @@ class DreoSlideNumber(DreoEntity, NumberEntity):
             self._attr_native_max_value = 100.0
         self._attr_native_step = 1.0
 
+    @property
+    def available(self) -> bool:
+        """Entity is available only if base is available and ambient light is on."""
+        if not super().available:
+            return False
+        return bool(getattr(self.coordinator.data, DreoDirective.HUMIDITY_SWITCH, False))
+
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        data = self.coordinator.data
-        if not isinstance(data, DreoHumidifierDeviceData):
+        if not self.coordinator.data:
             return
 
-        # Get value from state attribute
-        if self._state_attr_name and hasattr(data, self._state_attr_name):
-            value = getattr(data, self._state_attr_name, None)
-            if value is not None:
-                self._attr_native_value = float(value)
-            else:
-                self._attr_native_value = None
-        else:
-            self._attr_native_value = None
+        device_state_data = self.coordinator.data
+        self._attr_available = device_state_data.available and self._status_dependency(device_state_data)
 
+        if not self._state_attr_name or not hasattr(device_state_data, self._state_attr_name):
+            self._attr_native_value = None
+            return
+
+        value = getattr(device_state_data, self._state_attr_name, None)
+        self._attr_native_value = float(value) if value is not None else None
         super()._handle_coordinator_update()
+
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
         if not self.available:
             return
 
-        # Clamp value to bounds
         clamped_value = max(
             self._attr_native_min_value, min(self._attr_native_max_value, value)
         )
 
-        # Send command using directive name
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HUMIDITY_FAILED,
             **{self._directive_name: int(clamped_value)},

@@ -40,6 +40,7 @@ class DreoFeatureSpec(StrEnum):
     ATTR_NAME = "attr_name"
     ATTR_ICON = "attr_icon"
     THRESHOLD_RANGE = "threshold_range"
+    STATUS_AVAILABLE_DEPENDENCIES = "status_available_dependencies"
 
 
 class DreoDirective(StrEnum):
@@ -50,6 +51,8 @@ class DreoDirective(StrEnum):
     AMBIENT_SWITCH = "ambient_switch"
     AMBIENT_LIGHT_SWITCH = "ambient_light_switch"
     LIGHT_SWITCH = "light_switch"
+    HUMIDITY_SWITCH = "humidity_switch"
+    SWING_SWITCH = "swing_switch"
     MODE = "mode"
     OSCILLATE = "oscillate"
     OSCMODE = "oscmode"
@@ -57,7 +60,6 @@ class DreoDirective(StrEnum):
     LIGHTMODE = "lightmode"
     DISPLAY_MODE = "dispmode"
     HVAC_MODE = "hvacmode"
-    SWING_SWITCH = "swing_switch"
     TEMPERATURE = "temperature"
     HUMIDITY = "humidity"
     AMBIENT_RGB_MODE = "atmmode"
