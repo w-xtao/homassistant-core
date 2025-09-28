@@ -6,7 +6,6 @@ import contextlib
 import logging
 from typing import Any
 
-from .status_dependency import DreotStatusDependency
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -16,6 +15,7 @@ from . import DreoConfigEntry
 from .const import DreoDirective, DreoEntityConfigSpec, DreoErrorCode, DreoFeatureSpec
 from .coordinator import DreoDataUpdateCoordinator, DreoHumidifierDeviceData
 from .entity import DreoEntity
+from .status_dependency import DreotStatusDependency
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ async def async_setup_entry(
             slide_config = number_config.get(DreoFeatureSpec.SLIDE_COMPONENT)
             if slide_config:
                 numbers.append(DreoSlideNumber(device, coordinator))
-            elif threshold_config :
+            elif threshold_config:
                 numbers.append(DreoRgbThresholdLow(device, coordinator))
                 numbers.append(DreoRgbThresholdHigh(device, coordinator))
 
@@ -116,7 +116,9 @@ class DreoSlideNumber(DreoEntity, NumberEntity):
         """Entity is available only if base is available and ambient light is on."""
         if not super().available:
             return False
-        return bool(getattr(self.coordinator.data, DreoDirective.HUMIDITY_SWITCH, False))
+        return bool(
+            getattr(self.coordinator.data, DreoDirective.HUMIDITY_SWITCH, False)
+        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -125,16 +127,19 @@ class DreoSlideNumber(DreoEntity, NumberEntity):
             return
 
         device_state_data = self.coordinator.data
-        self._attr_available = device_state_data.available and self._status_dependency(device_state_data)
+        self._attr_available = device_state_data.available and self._status_dependency(
+            device_state_data
+        )
 
-        if not self._state_attr_name or not hasattr(device_state_data, self._state_attr_name):
+        if not self._state_attr_name or not hasattr(
+            device_state_data, self._state_attr_name
+        ):
             self._attr_native_value = None
             return
 
         value = getattr(device_state_data, self._state_attr_name, None)
         self._attr_native_value = float(value) if value is not None else None
         super()._handle_coordinator_update()
-
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""

@@ -17,6 +17,8 @@ class DreoEntityConfigSpec(StrEnum):
     SELECT_ENTITY_CONF = "select_entity_config"
     HUMIDIFIER_ENTITY_CONF = "humidifier_entity_config"
     NUMBER_ENTITY_CONF = "number_entity_config"
+    SENSOR_ENTITY_CONF = "sensor_entity_config"
+    HEATER_ENTITY_CONF = "heater_entity_config"
 
 
 class DreoFeatureSpec(StrEnum):
@@ -41,6 +43,7 @@ class DreoFeatureSpec(StrEnum):
     ATTR_ICON = "attr_icon"
     THRESHOLD_RANGE = "threshold_range"
     STATUS_AVAILABLE_DEPENDENCIES = "status_available_dependencies"
+    SENSOR_CLASS = "sensor_class"
 
 
 class DreoDirective(StrEnum):
@@ -84,6 +87,7 @@ class DreoDeviceType(StrEnum):
     HAP = "hap"  # Air Purifier
     HUMIDIFIER = "humidifier"  # Humidifier
     DEHUMIDIFIER = "dehumidifier"  # Dehumidifier
+    HEATER = "heater"
 
 
 CIR_FAN_SWING_ENTITY = "swing_direction"

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .status_dependency import DreotStatusDependency
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -20,6 +19,7 @@ from .coordinator import (
     DreoGenericDeviceData,
 )
 from .entity import DreoEntity
+from .status_dependency import DreotStatusDependency
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,10 +31,7 @@ def _has_rgb_features(device_data: DreoGenericDeviceData) -> bool:
     )
 
 
-ALLOWED_SELECT_CLASSES: set[str] = {
-    "DreoGenericModeSelect",
-    "DreoRgbSpeedSelect"
-}
+ALLOWED_SELECT_CLASSES: set[str] = {"DreoGenericModeSelect", "DreoRgbSpeedSelect"}
 
 
 async def async_setup_entry(
@@ -47,9 +44,7 @@ async def async_setup_entry(
     @callback
     def async_add_select_entities() -> None:
         """Add select entities."""
-        selects: list[
-            DreoRgbSpeedSelect | DreoGenericModeSelect
-        ] = []
+        selects: list[DreoRgbSpeedSelect | DreoGenericModeSelect] = []
 
         for device in config_entry.runtime_data.devices:
             # Do not gate by device_type here; rely on entitySupports and capabilities
@@ -113,6 +108,7 @@ async def async_setup_entry(
 
     async_add_select_entities()
 
+
 class DreoRgbSpeedSelect(DreoEntity, SelectEntity):
     """Dreo circulation fan RGB light speed select."""
 
@@ -124,7 +120,10 @@ class DreoRgbSpeedSelect(DreoEntity, SelectEntity):
     ) -> None:
         """Initialize the RGB speed select."""
         super().__init__(
-            device, coordinator, "select", select_mappings.get(DreoFeatureSpec.ATTR_NAME)
+            device,
+            coordinator,
+            "select",
+            select_mappings.get(DreoFeatureSpec.ATTR_NAME),
         )
 
         device_id = device.get("deviceSn")
