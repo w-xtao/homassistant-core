@@ -37,6 +37,7 @@ from .coordinator import (
     DreoCirculationFanDeviceData,
     DreoDataUpdateCoordinator,
     DreoGenericDeviceData,
+    DreoHecDeviceData,
 )
 from .entity import DreoEntity
 
@@ -46,7 +47,8 @@ _LOGGER = logging.getLogger(__name__)
 def _has_rgb_features(device_data: DreoGenericDeviceData) -> bool:
     """Check if device data has RGB features."""
     return isinstance(
-        device_data, (DreoCirculationFanDeviceData, DreoCeilingFanDeviceData)
+        device_data,
+        (DreoCirculationFanDeviceData, DreoCeilingFanDeviceData, DreoHecDeviceData),
     )
 
 
@@ -68,6 +70,7 @@ async def async_setup_entry(
                 DreoDeviceType.CIR_FAN,
                 DreoDeviceType.CEILING_FAN,
                 DreoDeviceType.RGBLIGHT_CEILING_FAN,
+                DreoDeviceType.HEC,
             ]:
                 continue
 
@@ -95,6 +98,8 @@ async def async_setup_entry(
             elif device_type == DreoDeviceType.RGBLIGHT_CEILING_FAN:
                 lights.append(DreoRGBLight(device, coordinator))
                 lights.append(DreoRegularLight(device, coordinator))
+            elif device_type == DreoDeviceType.HEC:
+                lights.append(DreoRGBLight(device, coordinator))
         if lights:
             async_add_entities(lights)
 
@@ -122,6 +127,7 @@ class DreoRGBLight(DreoEntity, LightEntity):
 
         device_id = device.get("deviceSn")
         self._attr_unique_id = f"{device_id}_rgb_light"
+        self._device_type = coordinator.device_type
 
         rgb_light_config = coordinator.model_config.get(
             DreoEntityConfigSpec.RGBLIGHT_ENTITY_CONF, {}
@@ -131,7 +137,7 @@ class DreoRGBLight(DreoEntity, LightEntity):
         self._brightness_percentage = tuple(
             rgb_light_config.get(DreoFeatureSpec.BRIGHTNESS_PERCENTAGE, [1, 100])
         )
-        self._rgb_brightness = tuple(
+        self._rgb_brightness = tuple[Any, ...](
             rgb_light_config.get(DreoFeatureSpec.RGB_BRIGHTNESS, [])
         )
 
@@ -166,7 +172,7 @@ class DreoRGBLight(DreoEntity, LightEntity):
             b = color_int & 255
             self._attr_rgb_color = (r, g, b)
 
-        if self._attr_effect != "Breath":
+        if self._attr_effect != "Breath" and self._device_type != DreoDeviceType.HEC:
             async_delete_issue(
                 self.hass,
                 "dreo",
@@ -193,7 +199,7 @@ class DreoRGBLight(DreoEntity, LightEntity):
             if self.coordinator.data and _has_rgb_features(self.coordinator.data):
                 current_rgb_mode = getattr(self.coordinator.data, "rgb_mode", None)
 
-            if current_rgb_mode == "Breath":
+            if current_rgb_mode == "Breath" and self._device_type != DreoDeviceType.HEC:
                 _LOGGER.warning(
                     "Brightness control is disabled in %s mode for %s. Use color picker to change colors",
                     current_rgb_mode,
@@ -256,7 +262,7 @@ class DreoRGBLight(DreoEntity, LightEntity):
         if self.coordinator.data and _has_rgb_features(self.coordinator.data):
             current_rgb_mode = getattr(self.coordinator.data, "rgb_mode", None)
 
-        if current_rgb_mode == "Breath":
+        if current_rgb_mode == "Breath" and self._device_type != DreoDeviceType.HEC:
             return None
 
         return self._attr_brightness

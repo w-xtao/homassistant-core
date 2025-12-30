@@ -83,6 +83,9 @@ class DreoDirective(StrEnum):
     ECOLEVEL = "ecolevel"
     HEAT_LEVEL = "htalevel"
     OSCANGLE = "oscangle"
+    HUMIDITY_MODE = "humidity_mode"
+    FOGLEVEL = "foglevel"
+    MAIN_SWITCH = "main_switch"
 
 
 class DreoDeviceType(StrEnum):

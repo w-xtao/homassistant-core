@@ -39,7 +39,7 @@ def _set_toggle_switches_to_state(
     )
     for toggle_switch in toggle_switches.values():
         field = toggle_switch.get("field")
-        operable_when_off = toggle_switch.get("operable_when_off", False)
+        operable_when_off = toggle_switch.get("operableWhenOff", False)
         if (val := state.get(field)) is not None:
             setattr(device_data, field, bool(val))
         if not operable_when_off and not device_data.is_on:
@@ -418,6 +418,14 @@ class DreoHecDeviceData(DreoGenericDeviceData):
     target_humidity: float | None = None
     current_humidity: float | None = None
     current_temperature: float | None = None
+    rgb_state: bool | None = None
+    rgb_mode: str | None = None
+    rgb_color: int | None = None
+    rgb_brightness: int | None = None
+    rgb_speed: str | None = None
+    humidity_switch: bool | None = None
+    humidity_mode: str | None = None
+    foglevel: str | None = None
     model_config: dict[str, Any] | None = None
 
     def __init__(
@@ -431,6 +439,14 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         target_humidity: float | None = None,
         current_humidity: float | None = None,
         current_temperature: float | None = None,
+        rgb_state: bool | None = None,
+        rgb_mode: str | None = None,
+        rgb_color: int | None = None,
+        rgb_brightness: int | None = None,
+        rgb_speed: str | None = None,
+        humidity_switch: bool | None = None,
+        humidity_mode: str | None = None,
+        foglevel: str | None = None,
         model_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize HEC device data."""
@@ -442,6 +458,14 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         self.target_humidity = target_humidity
         self.current_humidity = current_humidity
         self.current_temperature = current_temperature
+        self.rgb_state = rgb_state
+        self.rgb_mode = rgb_mode
+        self.rgb_color = rgb_color
+        self.rgb_brightness = rgb_brightness
+        self.rgb_speed = rgb_speed
+        self.humidity_switch = humidity_switch
+        self.humidity_mode = humidity_mode
+        self.foglevel = foglevel
         self.model_config = model_config
 
     @staticmethod
@@ -474,14 +498,40 @@ class DreoHecDeviceData(DreoGenericDeviceData):
         if (oscillate := state.get(DreoDirective.OSCILLATE)) is not None:
             hec_data.oscillate = bool(oscillate)
 
+        if (humidity_switch := state.get(DreoDirective.HUMIDITY_SWITCH)) is not None:
+            hec_data.humidity_switch = bool(humidity_switch)
+
+        if (humidity_mode := state.get(DreoDirective.HUMIDITY_MODE)) is not None:
+            hec_data.humidity_mode = str(humidity_mode)
+
         if (humidity := state.get(DreoDirective.HUMIDITY)) is not None:
             hec_data.target_humidity = float(humidity)
 
         if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
             hec_data.current_humidity = float(humidity)
 
+        if (foglevel := state.get(DreoDirective.FOGLEVEL)) is not None:
+            hec_data.foglevel = str(foglevel)
+
         if (temperature := state.get(DreoDirective.TEMPERATURE)) is not None:
             hec_data.current_temperature = float(temperature)
+
+        if (rgb_switch := state.get(DreoDirective.AMBIENT_SWITCH)) is not None:
+            hec_data.rgb_state = bool(rgb_switch)
+
+        if (rgb_mode := state.get(DreoDirective.AMBIENT_RGB_MODE)) is not None:
+            hec_data.rgb_mode = str(rgb_mode)
+
+        if (rgb_color := state.get(DreoDirective.AMBIENT_RGB_COLOR)) is not None:
+            hec_data.rgb_color = int(rgb_color)
+
+        if (
+            rgb_brightness := state.get(DreoDirective.AMBIENT_RGB_BRIGHTNESS)
+        ) is not None:
+            hec_data.rgb_brightness = int(rgb_brightness)
+
+        if (rgb_speed := state.get(DreoDirective.AMBIENT_RGB_SPEED)) is not None:
+            hec_data.rgb_speed = str(rgb_speed)
 
         _set_toggle_switches_to_state(hec_data, state, model_config)
 
