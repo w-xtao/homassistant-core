@@ -45,3 +45,9 @@ logger:
     homeassistant.components.cloud: debug
 " >> config/configuration.yaml
 fi
+
+# Install development dependencies if requirements-dev.txt exists
+if [ -f "requirements-dev.txt" ]; then
+  echo "Installing development dependencies from requirements-dev.txt..."
+  uv pip install -r requirements-dev.txt --constraint homeassistant/package_constraints.txt
+fi

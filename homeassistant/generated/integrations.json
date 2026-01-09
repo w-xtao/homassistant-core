@@ -2627,6 +2627,12 @@
       "integration_type": "virtual",
       "supported_by": "gree"
     },
+    "hello_state": {
+      "name": "hello_state",
+      "integration_type": "hub",
+      "config_flow": true,
+      "iot_class": "cloud_polling"
+    },
     "heltun": {
       "name": "HELTUN",
       "iot_standards": [

@@ -146,6 +146,17 @@
       "problemMatcher": []
     },
     {
+      "label": "Install Development Dependencies",
+      "type": "shell",
+      "command": "${workspaceFolder}/script/setup-dev",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Install all Test Requirements",
       "type": "shell",
       "command": "uv pip install -r requirements.txt -r requirements_test_all.txt",

@@ -83,6 +83,14 @@ class DreoFanDeviceData(DreoGenericDeviceData):
     oscillate: bool | None = None
     speed_percentage: int | None = None
     model_config: dict[str, Any] | None = None
+    fixed_angle: dict[str, Any] | None = None
+    oscrange: dict[str, Any] | None = None
+    hfixedangle: dict[str, Any] | None = None
+    vfixedangle: dict[str, Any] | None = None
+    hoscrange: dict[str, Any] | None = None
+    voscrange: dict[str, Any] | None = None
+    hfixed_angle_range: str | None = None
+    vfixed_angle_range: str | None = None
 
     def __init__(
         self,
@@ -94,6 +102,14 @@ class DreoFanDeviceData(DreoGenericDeviceData):
         light_mode: str | None = None,
         display_mode: str | None = None,
         model_config: dict[str, Any] | None = None,
+        fixed_angle: dict[str, Any] | None = None,
+        oscrange: dict[str, Any] | None = None,
+        hfixedangle: dict[str, Any] | None = None,
+        vfixedangle: dict[str, Any] | None = None,
+        hoscrange: dict[str, Any] | None = None,
+        voscrange: dict[str, Any] | None = None,
+        hfixed_angle_range: str | None = None,
+        vfixed_angle_range: str | None = None,
     ) -> None:
         """Initialize fan device data."""
         super().__init__(available, is_on)
@@ -103,6 +119,14 @@ class DreoFanDeviceData(DreoGenericDeviceData):
         self.light_mode = light_mode
         self.display_mode = display_mode
         self.model_config = model_config
+        self.fixed_angle = fixed_angle
+        self.oscrange = oscrange
+        self.hfixedangle = hfixedangle
+        self.vfixedangle = vfixedangle
+        self.hoscrange = hoscrange
+        self.voscrange = voscrange
+        self.hfixed_angle_range = hfixed_angle_range
+        self.vfixed_angle_range = vfixed_angle_range
 
     @staticmethod
     def process_fan_data(
@@ -138,6 +162,34 @@ class DreoFanDeviceData(DreoGenericDeviceData):
         if (dm := state.get(DreoDirective.DISPLAY_MODE)) is not None:
             fan_data.display_mode = str(dm) if not isinstance(dm, str) else dm
 
+        if (fixed_angle := state.get(DreoDirective.FIXED_ANGLE)) is not None:
+            fan_data.fixed_angle = fixed_angle
+
+        if (oscrange := state.get(DreoDirective.OSCRANGE)) is not None:
+            fan_data.oscrange = oscrange
+
+        if (hfixedangle := state.get(DreoDirective.HFIXEDANGLE)) is not None:
+            fan_data.hfixedangle = hfixedangle
+
+        if (vfixedangle := state.get(DreoDirective.VFIXEDANGLE)) is not None:
+            fan_data.vfixedangle = vfixedangle
+
+        if (hoscrange := state.get(DreoDirective.HOSCRANGE)) is not None:
+            fan_data.hoscrange = hoscrange
+
+        if (voscrange := state.get(DreoDirective.VOSCRANGE)) is not None:
+            fan_data.voscrange = voscrange
+
+        if (
+            hfixed_angle_range := state.get(DreoDirective.HFIXED_ANGLE_RANGE)
+        ) is not None:
+            fan_data.hfixed_angle_range = str(hfixed_angle_range)
+
+        if (
+            vfixed_angle_range := state.get(DreoDirective.VFIXED_ANGLE_RANGE)
+        ) is not None:
+            fan_data.vfixed_angle_range = str(vfixed_angle_range)
+
         _set_toggle_switches_to_state(fan_data, state, model_config)
 
         return fan_data
@@ -156,6 +208,15 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
     rgb_brightness: int | None = None
     rgb_speed: str | None = None
     model_config: dict[str, Any] | None = None
+    fixed_angle: dict[str, Any] | None = None
+    oscrange: dict[str, Any] | None = None
+    hfixedangle: dict[str, Any] | None = None
+    vfixedangle: dict[str, Any] | None = None
+    hoscrange: dict[str, Any] | None = None
+    voscrange: dict[str, Any] | None = None
+    hfixed_angle_range: str | None = None
+    vfixed_angle_range: str | None = None
+    hwfpangle: str | None = None
 
     def __init__(
         self,
@@ -172,6 +233,15 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
         rgb_brightness: int | None = None,
         rgb_speed: str | None = None,
         model_config: dict[str, Any] | None = None,
+        fixed_angle: dict[str, Any] | None = None,
+        oscrange: dict[str, Any] | None = None,
+        hfixedangle: dict[str, Any] | None = None,
+        vfixedangle: dict[str, Any] | None = None,
+        hoscrange: dict[str, Any] | None = None,
+        voscrange: dict[str, Any] | None = None,
+        hfixed_angle_range: str | None = None,
+        vfixed_angle_range: str | None = None,
+        hwfpangle: str | None = None,
     ) -> None:
         """Initialize circulation fan device data."""
         super().__init__(available, is_on)
@@ -186,6 +256,15 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
         self.rgb_brightness = rgb_brightness
         self.rgb_speed = rgb_speed
         self.model_config = model_config
+        self.fixed_angle = fixed_angle
+        self.oscrange = oscrange
+        self.hfixedangle = hfixedangle
+        self.vfixedangle = vfixedangle
+        self.hoscrange = hoscrange
+        self.voscrange = voscrange
+        self.hfixed_angle_range = hfixed_angle_range
+        self.vfixed_angle_range = vfixed_angle_range
+        self.hwfpangle = hwfpangle
 
     @staticmethod
     def process_circulation_fan_data(
@@ -238,6 +317,37 @@ class DreoCirculationFanDeviceData(DreoGenericDeviceData):
             fan_data.light_mode = (
                 str(light_mode) if not isinstance(light_mode, str) else light_mode
             )
+
+        if (fixed_angle := state.get(DreoDirective.FIXED_ANGLE)) is not None:
+            fan_data.fixed_angle = fixed_angle
+
+        if (oscrange := state.get(DreoDirective.OSCRANGE)) is not None:
+            fan_data.oscrange = oscrange
+
+        if (hfixedangle := state.get(DreoDirective.HFIXEDANGLE)) is not None:
+            fan_data.hfixedangle = hfixedangle
+
+        if (vfixedangle := state.get(DreoDirective.VFIXEDANGLE)) is not None:
+            fan_data.vfixedangle = vfixedangle
+
+        if (hoscrange := state.get(DreoDirective.HOSCRANGE)) is not None:
+            fan_data.hoscrange = hoscrange
+
+        if (voscrange := state.get(DreoDirective.VOSCRANGE)) is not None:
+            fan_data.voscrange = voscrange
+
+        if (
+            hfixed_angle_range := state.get(DreoDirective.HFIXED_ANGLE_RANGE)
+        ) is not None:
+            fan_data.hfixed_angle_range = str(hfixed_angle_range)
+
+        if (
+            vfixed_angle_range := state.get(DreoDirective.VFIXED_ANGLE_RANGE)
+        ) is not None:
+            fan_data.vfixed_angle_range = str(vfixed_angle_range)
+
+        if (hwfpangle := state.get(DreoDirective.HWFPANGLE)) is not None:
+            fan_data.hwfpangle = str(hwfpangle)
 
         _set_toggle_switches_to_state(fan_data, state, model_config)
 
@@ -655,13 +765,13 @@ class DreoDehumidifierDeviceData(DreoGenericDeviceData):
             model_config=model_config,
         )
 
-        if (mode := state.get(DreoDirective.MODE)) is not None:
+        if (mode := state.get(DreoDirective.HUMIDITY_MODE)) is not None:
             hdh.mode = str(mode)
 
         if (wind := state.get("windlevel")) is not None:
             hdh.wind_level = str(wind)
 
-        if (rh := state.get("rh_auto")) is not None:
+        if (rh := state.get("humidity")) is not None:
             hdh.target_humidity = float(rh)
 
         if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
@@ -687,6 +797,13 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
     rgb_threshold: str | None = None
     filter_time: int | None = None
     work_time: int | None = None
+    rgb_state: bool | None = None
+    rgb_mode: str | None = None
+    rgb_color: int | None = None
+    rgb_brightness: int | None = None
+    rgb_speed: str | None = None
+    rgb_breath_speed: int | None = None
+    rgb_cycle_speed: int | None = None
 
     def __init__(
         self,
@@ -702,6 +819,13 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         filter_time: int | None = None,
         work_time: int | None = None,
         model_config: dict[str, Any] | None = None,
+        rgb_state: bool | None = None,
+        rgb_mode: str | None = None,
+        rgb_color: int | None = None,
+        rgb_brightness: int | None = None,
+        rgb_speed: str | None = None,
+        rgb_breath_speed: int | None = None,
+        rgb_cycle_speed: int | None = None,
     ) -> None:
         """Initialize Dreo humidifier device data."""
         super().__init__(available, is_on)
@@ -715,6 +839,13 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
         self.filter_time = filter_time
         self.work_time = work_time
         self.model_config = model_config
+        self.rgb_state = rgb_state
+        self.rgb_mode = rgb_mode
+        self.rgb_color = rgb_color
+        self.rgb_brightness = rgb_brightness
+        self.rgb_speed = rgb_speed
+        self.rgb_breath_speed = rgb_breath_speed
+        self.rgb_cycle_speed = rgb_cycle_speed
 
     @staticmethod
     def process_humidifier_data(
@@ -758,6 +889,29 @@ class DreoHumidifierDeviceData(DreoGenericDeviceData):
 
         if (work_time := state.get("work_time")) is not None:
             humidifier_data.work_time = int(work_time)
+
+        if (rgb_state := state.get(DreoDirective.AMBIENT_SWITCH)) is not None:
+            humidifier_data.rgb_state = bool(rgb_state)
+
+        if (rgb_mode := state.get(DreoDirective.AMBIENT_RGB_MODE)) is not None:
+            humidifier_data.rgb_mode = str(rgb_mode)
+
+        if (rgb_color := state.get(DreoDirective.AMBIENT_RGB_COLOR)) is not None:
+            humidifier_data.rgb_color = int(rgb_color)
+
+        if (
+            rgb_brightness := state.get(DreoDirective.AMBIENT_RGB_BRIGHTNESS)
+        ) is not None:
+            humidifier_data.rgb_brightness = int(rgb_brightness)
+
+        if (rgb_speed := state.get(DreoDirective.AMBIENT_RGB_SPEED)) is not None:
+            humidifier_data.rgb_speed = str(rgb_speed)
+
+        if (rgb_breath_speed := state.get(DreoDirective.RGB_BREATH_SPEED)) is not None:
+            humidifier_data.rgb_breath_speed = int(rgb_breath_speed)
+
+        if (rgb_cycle_speed := state.get(DreoDirective.RGB_CYCLE_SPEED)) is not None:
+            humidifier_data.rgb_cycle_speed = int(rgb_cycle_speed)
 
         _set_toggle_switches_to_state(humidifier_data, state, model_config)
 

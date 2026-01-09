@@ -11,12 +11,10 @@ from homeassistant.components.humidifier import (
 )
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import DreoConfigEntry
 from .const import (
-    DOMAIN,
     DreoDeviceType,
     DreoDirective,
     DreoEntityConfigSpec,
@@ -147,7 +145,9 @@ class DreoHecHumidifier(DreoEntity, HumidifierEntity):
 
         hec_data = self.coordinator.data
         self._attr_available = hec_data.available
-        self._attr_is_on = hec_data.humidity_switch
+        self._attr_is_on = (
+            hec_data.humidity_switch if hec_data.humidity_switch is not None else False
+        )
 
         if hec_data.humidity_mode is not None:
             self._attr_mode = hec_data.humidity_mode
@@ -549,7 +549,7 @@ class DreoDehumidifier(DreoEntity, HumidifierEntity):
         if not self.is_on:
             command_params[DreoDirective.POWER_SWITCH] = True
 
-        command_params[DreoDirective.MODE] = mode
+        command_params[DreoDirective.HUMIDITY_MODE] = mode
 
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HUMIDIFIER_MODE_FAILED, **command_params
@@ -571,28 +571,33 @@ class DreoDehumidifier(DreoEntity, HumidifierEntity):
         if not self.is_on:
             command_params[DreoDirective.POWER_SWITCH] = True
 
-        # Check description limits for disabled modes
-        set_limits = self._attr_description_limits.get("set_humidity", {})
-        disabled_modes = (
-            set_limits.get("disableOnModes", []) if isinstance(set_limits, dict) else []
-        )
-        if self.mode in disabled_modes:
-            _LOGGER.error("Target humidity not supported in mode %s", self.mode)
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key=DreoErrorCode.HUMIDITY_NOT_SUPPORTED_IN_MODE,
-            )
-
-        mode_graph = self._attr_directive_graph.get(self.mode or "", {})
-        directive_name = (
-            mode_graph.get("name") if isinstance(mode_graph, dict) else None
-        )
-        if not directive_name:
-            _LOGGER.error("Directive name not found for mode %s", self.mode)
-            return
-
-        command_params[directive_name] = int(humidity)
+        command_params[DreoDirective.HUMIDITY] = int(humidity)
 
         await self.async_send_command_and_update(
             DreoErrorCode.SET_HUMIDITY_FAILED, **command_params
         )
+        # Check description limits for disabled modes
+        # set_limits = self._attr_description_limits.get("set_humidity", {})
+        # disabled_modes = (
+        #     set_limits.get("disableOnModes", []) if isinstance(set_limits, dict) else []
+        # )
+        # if self.mode in disabled_modes:
+        #     _LOGGER.error("Target humidity not supported in mode %s", self.mode)
+        #     raise HomeAssistantError(
+        #         translation_domain=DOMAIN,
+        #         translation_key=DreoErrorCode.HUMIDITY_NOT_SUPPORTED_IN_MODE,
+        #     )
+
+        # mode_graph = self._attr_directive_graph.get(self.mode or "", {})
+        # directive_name = (
+        #     mode_graph.get("name") if isinstance(mode_graph, dict) else None
+        # )
+        # if not directive_name:
+        #     _LOGGER.error("Directive name not found for mode %s", self.mode)
+        #     return
+
+        # command_params[directive_name] = int(humidity)
+
+        # await self.async_send_command_and_update(
+        #     DreoErrorCode.SET_HUMIDITY_FAILED, **command_params
+        # )
