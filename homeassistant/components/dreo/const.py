@@ -55,6 +55,7 @@ class DreoFeatureSpec(StrEnum):
     SUPPORTED_FEATURES = "supported_features"
     FIXED_ANGLE = "fixed_angle"
     OSCRANGE = "oscrange"
+    SENSOR_UNIT = "sensor_unit"
 
 
 class DreoDirective(StrEnum):
@@ -101,6 +102,7 @@ class DreoDirective(StrEnum):
     HWFPANGLE = "hwfpangle"
     RGB_BREATH_SPEED = "rgb_breath_speed"
     RGB_CYCLE_SPEED = "rgb_cycle_speed"
+    TEMP_UNITS = "temp_units"
 
 
 class DreoDeviceType(StrEnum):

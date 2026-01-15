@@ -449,6 +449,7 @@ class DreoHeaterDeviceData(DreoGenericDeviceData):
     dispmode: bool | None = None
     light_mode: str | None = None
     oscangle: str | None = None
+    oscmode: str | None = None
 
     def __init__(
         self,
@@ -463,6 +464,7 @@ class DreoHeaterDeviceData(DreoGenericDeviceData):
         dispmode: bool | None = None,
         light_mode: str | None = None,
         oscangle: str | None = None,
+        oscmode: str | None = None,
     ) -> None:
         """Initialize Heater device data."""
         super().__init__(available, is_on)
@@ -475,6 +477,7 @@ class DreoHeaterDeviceData(DreoGenericDeviceData):
         self.dispmode = dispmode
         self.display_mode = light_mode
         self.oscangle = oscangle
+        self.oscmode = oscmode
 
     @staticmethod
     def process_heater_data(
@@ -512,6 +515,9 @@ class DreoHeaterDeviceData(DreoGenericDeviceData):
 
         if oscangle := state.get(DreoDirective.OSCANGLE):
             heater_data.oscangle = str(oscangle)
+
+        if oscmode := state.get(DreoDirective.OSCMODE):
+            heater_data.oscmode = str(oscmode)
 
         _set_toggle_switches_to_state(heater_data, state, model_config)
 
