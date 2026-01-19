@@ -622,8 +622,6 @@ build.json @home-assistant/supervisor
 /homeassistant/components/hdmi_cec/ @inytar
 /tests/components/hdmi_cec/ @inytar
 /homeassistant/components/heatmiser/ @andylockran
-/homeassistant/components/hello_state/ @ChintanYang
-/tests/components/hello_state/ @ChintanYang
 /homeassistant/components/heos/ @andrewsayre
 /tests/components/heos/ @andrewsayre
 /homeassistant/components/here_travel_time/ @eifinger

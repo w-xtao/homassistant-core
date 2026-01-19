@@ -10,11 +10,6 @@
       "request": "launch",
       "module": "homeassistant",
       "justMyCode": false,
-      "python": "${workspaceFolder}/venv/bin/python",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      },
       "args": [
         "--debug",
         "-c",
@@ -28,11 +23,6 @@
       "request": "launch",
       "module": "homeassistant",
       "justMyCode": false,
-      "python": "${workspaceFolder}/venv/bin/python",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      },
       "args": [
         "--debug",
         "-c",
@@ -56,12 +46,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "python": "${workspaceFolder}/venv/bin/python",
-      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}"
-      },
       "args": ["-vv", "${file}"]
     },
     {
