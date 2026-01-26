@@ -771,13 +771,13 @@ class DreoDehumidifierDeviceData(DreoGenericDeviceData):
             model_config=model_config,
         )
 
-        if (mode := state.get(DreoDirective.HUMIDITY_MODE)) is not None:
+        if (mode := state.get(DreoDirective.MODE)) is not None:
             hdh.mode = str(mode)
 
         if (wind := state.get("windlevel")) is not None:
             hdh.wind_level = str(wind)
 
-        if (rh := state.get("humidity")) is not None:
+        if (rh := state.get("rh_auto")) is not None:
             hdh.target_humidity = float(rh)
 
         if (humidity := state.get(DreoDirective.HUMIDITY_SENSOR)) is not None:
