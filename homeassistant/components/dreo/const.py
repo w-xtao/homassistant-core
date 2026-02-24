@@ -120,9 +120,6 @@ class DreoDeviceType(StrEnum):
     HEATER = "heater"
 
 
-CIR_FAN_SWING_ENTITY = "swing_direction"
-
-
 class DreoErrorCode(StrEnum):
     """Error translation keys used across the integration."""
 
